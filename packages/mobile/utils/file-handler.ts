@@ -199,7 +199,7 @@ export const uploadFile = async (
           contentType: 'text',
           isPlainText: true
         }),
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        // signal: AbortSignal.timeout(10000) // Remove this line
       });
 
       if (!textUploadResponse.ok) {
