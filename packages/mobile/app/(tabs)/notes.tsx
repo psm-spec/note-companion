@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -10,7 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fetchFiles, UploadedFile } from '@/utils/api';
 import { useAuth } from '@clerk/clerk-expo';
@@ -37,7 +37,7 @@ export default function NotesScreen() {
   const router = useRouter();
   const primaryColor = useSemanticColor('primary');
 
-  const loadFiles = async (showSpinner = true) => {
+  const loadFiles = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
     setError(null);
     
@@ -45,31 +45,39 @@ export default function NotesScreen() {
       const token = await getToken();
       if (!token) {
         setError("Authentication required");
+        setLoading(false);
+        setRefreshing(false);
         return;
       }
       
       const filesData = await fetchFiles(token, { page: 1, limit: 10 });
       setFiles(filesData.files || []);
       
-      // Show onboarding if user has no files
-      setShowOnboarding(filesData.files.length === 0);
+      setShowOnboarding(filesData.files.length === 0 && !filesData.pagination?.totalPages);
     } catch (err) {
       console.error('Error loading files:', err);
       setError('Failed to load your notes. Please try again.');
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     loadFiles();
-  }, []);
+  }, [loadFiles]);
 
-  const handleRefresh = () => {
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Notes screen focused, reloading files...');
+      loadFiles(false);
+    }, [loadFiles])
+  );
+
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadFiles(false);
-  };
+  }, [loadFiles]);
   
   const handleDemoUpload = async () => {
     try {
