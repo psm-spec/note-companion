@@ -14,13 +14,13 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 // TODO: Uncomment to re-enable share intent functionality
 import { useShareIntent } from "expo-share-intent";
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ProcessingStatus } from "@/components/processing-status";
-import { 
-  SharedFile, 
-  UploadStatus, 
-  UploadResult, 
-  handleFileProcess 
+import {
+  SharedFile,
+  UploadStatus,
+  UploadResult,
+  handleFileProcess,
 } from "@/utils/file-handler";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
@@ -31,12 +31,17 @@ import { UsageStatus } from "@/components/usage-status";
 export default function HomeScreen() {
   const { getToken } = useAuth();
   const router = useRouter();
-  const [uploadResults, setUploadResults] = useState<(UploadResult | null)[]>([]);
+  const [uploadResults, setUploadResults] = useState<(UploadResult | null)[]>(
+    []
+  );
   const [status, setStatus] = useState<UploadStatus>("idle");
-  const params = useLocalSearchParams<{ sharedFile?: string; capturedPhoto?: string }>();
+  const params = useLocalSearchParams<{
+    sharedFile?: string;
+    capturedPhoto?: string;
+  }>();
   // TODO: Uncomment to re-enable share intent functionality
   const { shareIntent } = useShareIntent();
-  const primaryColor = useSemanticColor('primary');
+  const primaryColor = useSemanticColor("primary");
   const insets = useSafeAreaInsets();
 
   // TODO: Uncomment this useEffect block to re-enable share intent functionality
@@ -48,53 +53,62 @@ export default function HomeScreen() {
           if (shareIntent.files && shareIntent.files.length > 0) {
             // Handle shared files
             const file = shareIntent.files[0];
-            
+
             // Improved mime type detection for images
             let mimeType = file.mimeType;
-            const fileExt = file.path.split('.').pop()?.toLowerCase();
-            
+            const fileExt = file.path.split(".").pop()?.toLowerCase();
+
             // Fix missing or incorrect mime types from device
-            if (fileExt && (!mimeType || !mimeType.startsWith('image/'))) {
-              if (['jpg', 'jpeg'].includes(fileExt)) {
-                mimeType = 'image/jpeg';
-              } else if (fileExt === 'png') {
-                mimeType = 'image/png';
-              } else if (fileExt === 'heic') {
-                mimeType = 'image/heic';
-              } else if (fileExt === 'webp') {
-                mimeType = 'image/webp';
-              } else if (fileExt === 'gif') {
-                mimeType = 'image/gif';
-              } else if (fileExt === 'pdf') {
-                mimeType = 'application/pdf';
+            if (fileExt && (!mimeType || !mimeType.startsWith("image/"))) {
+              if (["jpg", "jpeg"].includes(fileExt)) {
+                mimeType = "image/jpeg";
+              } else if (fileExt === "png") {
+                mimeType = "image/png";
+              } else if (fileExt === "heic") {
+                mimeType = "image/heic";
+              } else if (fileExt === "webp") {
+                mimeType = "image/webp";
+              } else if (fileExt === "gif") {
+                mimeType = "image/gif";
+              } else if (fileExt === "pdf") {
+                mimeType = "application/pdf";
               }
             }
-            
-            console.log(`ShareIntent: Processing file with path=${file.path}, mimeType=${mimeType}, fileName=${file.fileName}`);
-            
-            await uploadFiles([{
-              uri: file.path,
-              mimeType: mimeType,
-              name: file.fileName,
-            }]);
+
+            console.log(
+              `ShareIntent: Processing file with path=${file.path}, mimeType=${mimeType}, fileName=${file.fileName}`
+            );
+
+            await uploadFiles([
+              {
+                uri: file.path,
+                mimeType: mimeType,
+                name: file.fileName,
+              },
+            ]);
           } else if (shareIntent.text) {
             // Handle shared text (could save as markdown or process differently)
             const textFile = {
               uri: `${FileSystem.cacheDirectory}shared-text-${Date.now()}.md`,
-              mimeType: 'text/markdown',
-              name: 'shared-text.md',
-              text: shareIntent.text
+              mimeType: "text/markdown",
+              name: "shared-text.md",
+              text: shareIntent.text,
             };
-            
+
             await uploadFiles([textFile]);
           }
         } catch (error) {
-          console.error('Error handling shared content:', error);
-          setUploadResults([{
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Failed to process shared content'
-          }]);
-          setStatus('error');
+          console.error("Error handling shared content:", error);
+          setUploadResults([
+            {
+              status: "error",
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to process shared content",
+            },
+          ]);
+          setStatus("error");
         }
       }
     };
@@ -111,9 +125,9 @@ export default function HomeScreen() {
           const fileData = JSON.parse(params.sharedFile);
           await uploadFiles([fileData]);
           // Clear the param after processing
-          // router.setParams({ sharedFile: undefined }); 
+          // router.setParams({ sharedFile: undefined });
         } catch (error) {
-          console.error('Error handling shared file:', error);
+          console.error("Error handling shared file:", error);
           setUploadResults([
             {
               status: "error",
@@ -146,7 +160,7 @@ export default function HomeScreen() {
           // Clear the param after processing
           // router.setParams({ capturedPhoto: undefined });
         } catch (error) {
-          console.error('Error handling captured photo:', error);
+          console.error("Error handling captured photo:", error);
           setUploadResults([
             {
               status: "error",
@@ -169,12 +183,12 @@ export default function HomeScreen() {
   }, [params.capturedPhoto]); // Add dependency on capturedPhoto
 
   const uploadFiles = async (files: SharedFile[]) => {
-    setStatus("uploading"); 
+    setStatus("uploading");
     setUploadResults(
-      files.map(file => ({
+      files.map((file) => ({
         fileName: file.name,
         mimeType: file.mimeType,
-        status: 'uploading', 
+        status: "uploading",
         text: undefined,
         fileUrl: undefined,
         error: undefined,
@@ -184,18 +198,20 @@ export default function HomeScreen() {
     const token = await getToken();
     if (!token) {
       setStatus("error");
-      setUploadResults(files.map(file => ({
-        fileName: file.name,
-        mimeType: file.mimeType,
-        status: 'error',
-        error: 'Authentication required',
-        text: undefined,
-        fileUrl: undefined,
-      })));
+      setUploadResults(
+        files.map((file) => ({
+          fileName: file.name,
+          mimeType: file.mimeType,
+          status: "error",
+          error: "Authentication required",
+          text: undefined,
+          fileUrl: undefined,
+        }))
+      );
       console.error("Authentication required");
       return;
     }
-    
+
     let processedCount = 0;
     let errorCount = 0;
     const totalFiles = files.length;
@@ -205,37 +221,50 @@ export default function HomeScreen() {
         // Optional: Update individual file status if needed in uploadResults
         // console.log(`Intermediate status for ${file.name}: ${s}`);
       })
-        .then(result => {
+        .then((result) => {
           processedCount++;
           console.log(`Processing finished for ${file.name}:`, result.status);
           // Update the specific file's result in state
-          setUploadResults(prev => prev.map((r, i) => i === index ? { ...r, ...result, status: result.status } : r));
+          setUploadResults((prev) =>
+            prev.map((r, i) =>
+              i === index ? { ...r, ...result, status: result.status } : r
+            )
+          );
 
           // Check if all files are done
           if (processedCount + errorCount === totalFiles) {
             // If all processed successfully (errorCount is still 0), set completed
             if (errorCount === 0) {
-              setStatus('completed');
+              setStatus("completed");
             } else {
               // Otherwise, some failed, set error
-              setStatus('error'); 
+              setStatus("error");
             }
           }
         })
-        .catch(error => {
+        .catch((error) => {
           errorCount++;
           console.error(`Error processing file ${file.name}:`, error);
-          setUploadResults(prev => prev.map((r, i) => i === index ? {
-            ...r,
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Failed to process file'
-          } : r));
+          setUploadResults((prev) =>
+            prev.map((r, i) =>
+              i === index
+                ? {
+                    ...r,
+                    status: "error",
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to process file",
+                  }
+                : r
+            )
+          );
 
           // Check if all files are done (even if this one failed)
           if (processedCount + errorCount === totalFiles) {
             setStatus("error"); // Set final status to error
           }
-          // Note: We don't set the *overall* status to error immediately on first failure, 
+          // Note: We don't set the *overall* status to error immediately on first failure,
           // we wait for all promises to settle. Individual files will show their error state.
         });
     });
@@ -255,14 +284,17 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("Error picking document:", error);
       setStatus("error");
-      setUploadResults([{
-        status: "error",
-        error: error instanceof Error ? error.message : "Failed to pick document",
-        fileName: undefined,
-        mimeType: undefined,
-        text: undefined,
-        fileUrl: undefined,
-      }]);
+      setUploadResults([
+        {
+          status: "error",
+          error:
+            error instanceof Error ? error.message : "Failed to pick document",
+          fileName: undefined,
+          mimeType: undefined,
+          text: undefined,
+          fileUrl: undefined,
+        },
+      ]);
     }
   };
 
@@ -272,14 +304,16 @@ export default function HomeScreen() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permissionStatus !== "granted") {
         setStatus("error");
-        setUploadResults([{
-          status: "error",
-          error: "Gallery permission denied",
-          fileName: undefined,
-          mimeType: undefined,
-          text: undefined,
-          fileUrl: undefined,
-        }]);
+        setUploadResults([
+          {
+            status: "error",
+            error: "Gallery permission denied",
+            fileName: undefined,
+            mimeType: undefined,
+            text: undefined,
+            fileUrl: undefined,
+          },
+        ]);
         return;
       }
 
@@ -297,14 +331,17 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("Error picking photos:", error);
       setStatus("error");
-      setUploadResults([{
-        status: "error",
-        error: error instanceof Error ? error.message : "Failed to pick photos",
-        fileName: undefined,
-        mimeType: undefined,
-        text: undefined,
-        fileUrl: undefined,
-      }]);
+      setUploadResults([
+        {
+          status: "error",
+          error:
+            error instanceof Error ? error.message : "Failed to pick photos",
+          fileName: undefined,
+          mimeType: undefined,
+          text: undefined,
+          fileUrl: undefined,
+        },
+      ]);
     }
   };
 
@@ -314,14 +351,16 @@ export default function HomeScreen() {
         await ImagePicker.requestCameraPermissionsAsync();
       if (cameraStatus !== "granted") {
         setStatus("error");
-        setUploadResults([{
-          status: "error",
-          error: "Camera permission denied",
-          fileName: undefined,
-          mimeType: undefined,
-          text: undefined,
-          fileUrl: undefined,
-        }]);
+        setUploadResults([
+          {
+            status: "error",
+            error: "Camera permission denied",
+            fileName: undefined,
+            mimeType: undefined,
+            text: undefined,
+            fileUrl: undefined,
+          },
+        ]);
         return;
       }
 
@@ -337,14 +376,17 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("Error taking photo:", error);
       setStatus("error");
-      setUploadResults([{
-        status: "error",
-        error: error instanceof Error ? error.message : "Failed to take photo",
-        fileName: undefined,
-        mimeType: undefined,
-        text: undefined,
-        fileUrl: undefined,
-      }]);
+      setUploadResults([
+        {
+          status: "error",
+          error:
+            error instanceof Error ? error.message : "Failed to take photo",
+          fileName: undefined,
+          mimeType: undefined,
+          text: undefined,
+          fileUrl: undefined,
+        },
+      ]);
     }
   };
 
@@ -354,12 +396,26 @@ export default function HomeScreen() {
   };
 
   const renderHeader = () => (
-    <ThemedView variant="elevated" style={[styles.header, { paddingTop: Math.max(20, insets.top) }]}>
+    <ThemedView
+      variant="elevated"
+      style={[styles.header, { paddingTop: Math.max(20, insets.top) }]}
+    >
       <View style={styles.titleContainer}>
-        <MaterialIcons name="home" size={28} color={primaryColor} style={styles.icon} />
-        <ThemedText type="heading" style={styles.headerTitle}>Home</ThemedText>
+        <MaterialIcons
+          name="home"
+          size={28}
+          color={primaryColor}
+          style={styles.icon}
+        />
+        <ThemedText type="heading" style={styles.headerTitle}>
+          Home
+        </ThemedText>
       </View>
-      <ThemedText colorName="textSecondary" type="label" style={styles.headerSubtitle}>
+      <ThemedText
+        colorName="textSecondary"
+        type="label"
+        style={styles.headerSubtitle}
+      >
         Extract text from your documents and images
       </ThemedText>
     </ThemedView>
@@ -368,12 +424,10 @@ export default function HomeScreen() {
   const renderExplanation = () => (
     <View style={styles.explanationCard}>
       <MaterialIcons name="auto-awesome" size={24} color={primaryColor} />
-      <Text style={styles.explanationTitle}>
-        Get OCR from any image or pdf
-      </Text>
+      <Text style={styles.explanationTitle}>Get OCR from any image or pdf</Text>
       <Text style={styles.explanationText}>
-        Upload any image or pdf and get the text extracted. You can also use
-        the share sheet to upload from other apps.
+        Upload any image or pdf and get the text extracted. You can also use the
+        share sheet to upload from other apps.
       </Text>
     </View>
   );
@@ -391,7 +445,7 @@ export default function HomeScreen() {
           style={[
             styles.uploadButtonWrapper,
             // [3] Only disable during the actual upload phase
-            status === "uploading" && styles.uploadButtonDisabled, 
+            status === "uploading" && styles.uploadButtonDisabled,
           ]}
           onPress={pickDocument}
           // [3] Only disable during the actual upload phase
@@ -417,41 +471,22 @@ export default function HomeScreen() {
         >
           <View style={styles.uploadButtonGradient}></View>
           <View style={styles.uploadButtonContent}>
-            <MaterialIcons name="photo-library" size={32} color={primaryColor} />
+            <MaterialIcons
+              name="photo-library"
+              size={32}
+              color={primaryColor}
+            />
             <Text style={styles.uploadButtonText}>Photo Library</Text>
             <Text style={styles.uploadButtonSubtext}>Choose Photos</Text>
           </View>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.uploadButtonRow}>
-        <TouchableOpacity
-          style={[
-            styles.uploadButtonWrapper,
-            // [3] Only disable during the actual upload phase
-            status === "uploading" && styles.uploadButtonDisabled,
-          ]}
-          onPress={takePhoto}
-          // [3] Only disable during the actual upload phase
-          disabled={status === "uploading"}
-        >
-          <View style={styles.uploadButtonGradient}></View>
-          <View style={styles.uploadButtonContent}>
-            <MaterialIcons name="camera-alt" size={32} color={primaryColor} />
-            <Text style={styles.uploadButtonText}>Take Photo</Text>
-            <Text style={styles.uploadButtonSubtext}>Document or Note</Text>
-          </View>
-        </TouchableOpacity>
-        
-        <View style={styles.uploadButtonWrapper} />
-      </View>
     </View>
   );
-
   const renderHelpLink = () => (
     <TouchableOpacity
       style={styles.helpLink}
-      onPress={() => router.push('/help')}
+      onPress={() => router.push("/help")}
     >
       <MaterialIcons name="help-outline" size={18} color="#007AFF" />
       <Text style={styles.helpLinkText}>Need help with sharing?</Text>
@@ -462,28 +497,44 @@ export default function HomeScreen() {
     const fileCount = uploadResults.length;
 
     // While uploading/processing is happening
-    if (status === 'uploading') {
-      const message = `Uploading & Processing ${fileCount} file${fileCount > 1 ? 's' : ''}...`;
+    if (status === "uploading") {
+      const message = `Uploading & Processing ${fileCount} file${
+        fileCount > 1 ? "s" : ""
+      }...`;
       return (
         <ProcessingStatus
           status={status}
           result={message}
-          fileName={fileCount === 1 ? uploadResults[0]?.fileName : (fileCount > 1 ? `${fileCount} files` : undefined)}
+          fileName={
+            fileCount === 1
+              ? uploadResults[0]?.fileName
+              : fileCount > 1
+              ? `${fileCount} files`
+              : undefined
+          }
           onRetry={handleRetry} // Retry might not make sense here, consider disabling/hiding
           showDetails={false} // No details to show yet
         />
       );
     }
-    
+
     // When all processing is complete (successfully)
-    if (status === 'completed') {
-      const message = `Processing complete for ${fileCount} file${fileCount > 1 ? 's' : ''}.`;
-       // TODO: Could add more detail here by iterating through uploadResults if needed
+    if (status === "completed") {
+      const message = `Processing complete for ${fileCount} file${
+        fileCount > 1 ? "s" : ""
+      }.`;
+      // TODO: Could add more detail here by iterating through uploadResults if needed
       return (
         <ProcessingStatus
           status={status}
-          result={message} 
-          fileName={fileCount === 1 ? uploadResults[0]?.fileName : (fileCount > 1 ? `${fileCount} files` : undefined)}
+          result={message}
+          fileName={
+            fileCount === 1
+              ? uploadResults[0]?.fileName
+              : fileCount > 1
+              ? `${fileCount} files`
+              : undefined
+          }
           onRetry={handleRetry} // Allow retry/reset
           showDetails={false} // Maybe show details of extracted text later?
         />
@@ -491,34 +542,43 @@ export default function HomeScreen() {
     }
 
     // When processing finished, but with errors
-    if (status === 'error') {
-      const errorResults = uploadResults.filter(r => r?.status === 'error');
-      const successResults = uploadResults.filter(r => r?.status === 'completed'); // Assuming 'completed' is the success status from handleFileProcess
+    if (status === "error") {
+      const errorResults = uploadResults.filter((r) => r?.status === "error");
+      const successResults = uploadResults.filter(
+        (r) => r?.status === "completed"
+      ); // Assuming 'completed' is the success status from handleFileProcess
       const firstErrorResult = errorResults.length > 0 ? errorResults[0] : null;
-      
+
       let message = `Processing finished with errors.`;
       if (errorResults.length === fileCount) {
-        message = `All ${fileCount} file${fileCount > 1 ? 's' : ''} failed to process.`;
+        message = `All ${fileCount} file${
+          fileCount > 1 ? "s" : ""
+        } failed to process.`;
       } else if (errorResults.length > 0) {
-        message = `${errorResults.length} of ${fileCount} file${fileCount > 1 ? 's' : ''} failed.`;
+        message = `${errorResults.length} of ${fileCount} file${
+          fileCount > 1 ? "s" : ""
+        } failed.`;
       }
-      
+
       // Use the first error message for the main display
-      const displayError = firstErrorResult?.error || 'An error occurred during processing';
+      const displayError =
+        firstErrorResult?.error || "An error occurred during processing";
 
       return (
         <ProcessingStatus
           status={status}
           result={displayError} // Pass error message to result prop
-          fileName={fileCount > 1 ? `${fileCount} files` : uploadResults[0]?.fileName} // Keep general file info
+          fileName={
+            fileCount > 1 ? `${fileCount} files` : uploadResults[0]?.fileName
+          } // Keep general file info
           onRetry={handleRetry}
           showDetails={true} // Show the error details
         />
       );
     }
-    
+
     // If idle or any other state, don't render the status component
-    return null; 
+    return null;
   };
 
   return (
@@ -529,7 +589,7 @@ export default function HomeScreen() {
           {renderExplanation()}
           {renderUsageStatus()}
           {renderUploadButtons()}
-          
+
           {renderProcessingStatus()}
 
           {renderHelpLink()}
@@ -562,15 +622,15 @@ const styles = StyleSheet.create({
     }),
   },
   titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   icon: {
     marginRight: 8,
   },
   headerTitle: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   headerSubtitle: {
     marginBottom: 8,
@@ -611,29 +671,29 @@ const styles = StyleSheet.create({
     width: "48%",
     minHeight: 140,
     borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
   },
   uploadButtonGradient: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     top: 0,
     bottom: 0,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: "#e5e5e5",
     borderRadius: 16,
   },
   uploadButtonContent: {
     flex: 1,
-    position: 'relative',
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     margin: 2,
     borderRadius: 14,
-    height: '100%',
+    height: "100%",
   },
   uploadButtonDisabled: {
     opacity: 0.5,
@@ -652,17 +712,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   helpLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 24,
     padding: 12,
   },
   helpLinkText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: "#007AFF",
     marginLeft: 6,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   usageStatusContainer: {
     marginBottom: 16,
