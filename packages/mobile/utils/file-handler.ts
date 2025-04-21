@@ -168,59 +168,6 @@ export const uploadFile = async (
       platform: Platform.OS,
     });
 
-    // --- Handle Text Content Separately (Upload directly) ---
-    if ((mimeType === 'text/markdown' || mimeType === 'text/plain') && file.text) {
-      console.log('Text content detected, handling via direct upload endpoint');
-      // NOTE: Keep the existing text upload logic for simplicity for now.
-      // This avoids needing a separate processing path for text vs. binary files
-      // in the background worker initially.
-
-      const moderationResult = await moderateContent(file.text);
-      if (!moderationResult.isAppropriate) {
-        console.log('Content moderation failed:', moderationResult.reason);
-        return {
-          success: false,
-          status: 'error',
-          error: 'Content failed moderation check. Please review and resubmit.'
-        };
-      }
-
-      // Using the *original* /api/upload endpoint specifically for text for now
-      const textUploadResponse = await fetch(`${API_URL}/api/upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: fileName,
-          type: mimeType,
-          content: file.text,
-          contentType: 'text',
-          isPlainText: true
-        }),
-        // signal: AbortSignal.timeout(10000) // Remove this line
-      });
-
-      if (!textUploadResponse.ok) {
-        const errorData = await textUploadResponse.json().catch(() => ({ error: 'Text upload failed' }));
-        throw new Error(errorData.error || 'Text upload failed');
-      }
-
-      const textUploadResult = await textUploadResponse.json();
-      console.log('Direct text upload result:', textUploadResult);
-      return {
-        success: true,
-        fileId: textUploadResult.fileId, // This ID should be processable by /api/process-file
-        status: 'completed', // Text is considered complete on upload
-        text: file.text,
-        url: textUploadResult.url,
-        mimeType: mimeType, // Pass along mimeType
-        fileName: fileName, // Pass along fileName
-      };
-    }
-    // --- End Text Content Handling ---
-
     // --- Binary File Upload via Presigned URL ---
     console.log('Handling binary file upload via presigned URL');
     if (!fileUri) {
