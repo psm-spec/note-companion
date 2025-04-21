@@ -33,7 +33,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [uploadResults, setUploadResults] = useState<(UploadResult | null)[]>([]);
   const [status, setStatus] = useState<UploadStatus>("idle");
-  const params = useLocalSearchParams<{ sharedFile?: string }>();
+  const params = useLocalSearchParams<{ sharedFile?: string; capturedPhoto?: string }>();
   // TODO: Uncomment to re-enable share intent functionality
   // const { shareIntent } = useShareIntent();
   const primaryColor = useSemanticColor('primary');
@@ -109,15 +109,27 @@ export default function HomeScreen() {
     const handleSharedFile = async () => {
       if (params.sharedFile) {
         try {
+          console.log("Handling shared file:", params.sharedFile);
           const fileData = JSON.parse(params.sharedFile);
           await uploadFiles([fileData]);
+          // Clear the param after processing
+          // router.setParams({ sharedFile: undefined }); 
         } catch (error) {
           console.error('Error handling shared file:', error);
-          setUploadResults([{
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Failed to process shared file'
-          }]);
-          setStatus('error');
+          setUploadResults([
+            {
+              status: "error",
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to process shared file",
+              fileName: undefined,
+              mimeType: undefined,
+              text: undefined,
+              fileUrl: undefined,
+            },
+          ]);
+          setStatus("error");
         }
       }
     };
@@ -125,13 +137,47 @@ export default function HomeScreen() {
     handleSharedFile();
   }, [params.sharedFile]);
 
+  // NEW useEffect to handle captured photo
+  useEffect(() => {
+    const handleCapturedPhoto = async () => {
+      if (params.capturedPhoto) {
+        try {
+          console.log("Handling captured photo:", params.capturedPhoto);
+          const fileData = JSON.parse(params.capturedPhoto);
+          await uploadFiles([fileData]);
+          // Clear the param after processing
+          // router.setParams({ capturedPhoto: undefined });
+        } catch (error) {
+          console.error('Error handling captured photo:', error);
+          setUploadResults([
+            {
+              status: "error",
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to process captured photo",
+              fileName: undefined,
+              mimeType: undefined,
+              text: undefined,
+              fileUrl: undefined,
+            },
+          ]);
+          setStatus("error");
+        }
+      }
+    };
+
+    handleCapturedPhoto();
+  }, [params.capturedPhoto]); // Add dependency on capturedPhoto
+
   const uploadFiles = async (files: SharedFile[]) => {
-    setStatus("uploading");
+    // [1] Set status to uploading initially
+    setStatus("uploading"); 
     setUploadResults(
       files.map(file => ({
         fileName: file.name,
         mimeType: file.mimeType,
-        status: 'uploading',
+        status: 'uploading', // Keep initial status per file as uploading
         text: undefined,
         fileUrl: undefined,
         error: undefined,
@@ -152,36 +198,44 @@ export default function HomeScreen() {
       console.error("Authentication required");
       return;
     }
+    
+    // [2] Set status to processing immediately after checks, before async calls in loop
+    // This allows the UI (buttons) to become enabled sooner.
+    setStatus('processing');
 
     let uploadsInitiated = 0;
     let initiationFailed = false;
+    const totalFiles = files.length;
 
     files.forEach((file, index) => {
       handleFileProcess(file, token, (s) => {
-        // This callback from handleFileProcess might still be useful for intermediate steps
-        // console.log(`Status update for ${file.name}: ${s}`);
-        // We could update individual file status here if needed, but keeping it simple for now
+        // Optional: Update individual file status if needed in uploadResults
+        // console.log(`Intermediate status for ${file.name}: ${s}`);
       })
         .then(result => {
           uploadsInitiated++;
-          console.log(`Processing initiated for ${file.name}:`, result.status);
-          // Optionally update the specific file's result in state if needed, e.g.:
-          // setUploadResults(prev => prev.map((r, i) => i === index ? { ...r, ...result, status: result.status } : r));
+          console.log(`Processing finished for ${file.name}:`, result.status);
+          // Update the specific file's result in state
+          setUploadResults(prev => prev.map((r, i) => i === index ? { ...r, ...result, status: result.status } : r));
 
-          if (uploadsInitiated === files.length && !initiationFailed) {
-            setStatus('processing');
-          }
+          // Decide if overall status should change AFTER processing starts
+          // For now, we leave status as 'processing' until user interacts or all files finish/error
+          // if (uploadsInitiated === totalFiles && !initiationFailed) {
+          //   // Potentially set to 'completed' here if desired, but requirement is to unblock earlier
+          //   // setStatus('completed'); 
+          // }
         })
         .catch(error => {
           uploadsInitiated++;
           initiationFailed = true;
-          console.error(`Error initiating processing for ${file.name}:`, error);
+          console.error(`Error processing file ${file.name}:`, error);
           setUploadResults(prev => prev.map((r, i) => i === index ? {
             ...r,
             status: 'error',
-            error: error instanceof Error ? error.message : 'Failed to start processing'
+            error: error instanceof Error ? error.message : 'Failed to process file'
           } : r));
-          setStatus("error");
+          // If any file fails, set the overall status to error
+          setStatus("error"); 
         });
     });
   };
@@ -335,10 +389,12 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[
             styles.uploadButtonWrapper,
-            (status !== "idle" && status !== "completed" && status !== "error") && styles.uploadButtonDisabled,
+            // [3] Only disable during the actual upload phase
+            status === "uploading" && styles.uploadButtonDisabled, 
           ]}
           onPress={pickDocument}
-          disabled={status !== "idle" && status !== "completed" && status !== "error"}
+          // [3] Only disable during the actual upload phase
+          disabled={status === "uploading"}
         >
           <View style={styles.uploadButtonGradient}></View>
           <View style={styles.uploadButtonContent}>
@@ -351,10 +407,12 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[
             styles.uploadButtonWrapper,
-            (status !== "idle" && status !== "completed" && status !== "error") && styles.uploadButtonDisabled,
+            // [3] Only disable during the actual upload phase
+            status === "uploading" && styles.uploadButtonDisabled,
           ]}
           onPress={pickPhotos}
-          disabled={status !== "idle" && status !== "completed" && status !== "error"}
+          // [3] Only disable during the actual upload phase
+          disabled={status === "uploading"}
         >
           <View style={styles.uploadButtonGradient}></View>
           <View style={styles.uploadButtonContent}>
@@ -369,10 +427,12 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[
             styles.uploadButtonWrapper,
-            (status !== "idle" && status !== "completed" && status !== "error") && styles.uploadButtonDisabled,
+            // [3] Only disable during the actual upload phase
+            status === "uploading" && styles.uploadButtonDisabled,
           ]}
           onPress={takePhoto}
-          disabled={status !== "idle" && status !== "completed" && status !== "error"}
+          // [3] Only disable during the actual upload phase
+          disabled={status === "uploading"}
         >
           <View style={styles.uploadButtonGradient}></View>
           <View style={styles.uploadButtonContent}>

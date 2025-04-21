@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   TouchableOpacity,
-  View,
   StyleSheet,
   Platform,
   AccessibilityRole,
-  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { launchCameraAndUpload } from '@/utils/camera-handler';
+import { launchCamera } from '@/utils/camera-handler';
 import { useSemanticColor } from '@/hooks/useThemeColor';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '@clerk/clerk-expo';
-import { UploadStatus } from '@/utils/file-handler';
+import { useRouter } from 'expo-router';
 
 interface CameraTabButtonProps {
   accessibilityLabel?: string;
@@ -29,24 +26,26 @@ const CameraTabButton: React.FC<CameraTabButtonProps> = ({
 }) => {
   const primaryColor = useSemanticColor('primary');
   const backgroundColor = useSemanticColor('tabBar');
-  const { getToken } = useAuth();
-  const [status, setStatus] = useState<UploadStatus>('idle');
+  const router = useRouter();
 
   const handlePress = async () => {
-    if (status !== 'idle' && status !== 'completed' && status !== 'error') {
-      console.log('Upload already in progress...');
-      return;
-    }
-
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    console.log('Camera button pressed, attempting to launch camera and upload...');
-    
-    await launchCameraAndUpload(getToken, setStatus);
-  };
+    console.log('Camera button pressed, attempting to launch camera...');
 
-  const isUploading = status === 'uploading' || status === 'processing';
+    const capturedFile = await launchCamera();
+
+    if (capturedFile) {
+      console.log('Photo captured, navigating to Home with file data.');
+      router.push({
+        pathname: '/',
+        params: { capturedPhoto: JSON.stringify(capturedFile) },
+      });
+    } else {
+      console.log('Camera launch canceled or failed.');
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -54,14 +53,9 @@ const CameraTabButton: React.FC<CameraTabButtonProps> = ({
       onPress={handlePress}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
-      accessibilityState={{ ...accessibilityState, busy: isUploading }}
-      disabled={isUploading}
+      accessibilityState={accessibilityState}
     >
-      {isUploading ? (
-        <ActivityIndicator size="small" color={primaryColor} />
-      ) : (
-        children
-      )}
+      {children}
     </TouchableOpacity>
   );
 };
