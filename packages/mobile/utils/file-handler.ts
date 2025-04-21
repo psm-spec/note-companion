@@ -2,31 +2,6 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, API_CONFIG } from '@/constants/config';
 
-// Basic content moderation function to screen uploads
-const moderateContent = async (text: string | undefined): Promise<{ 
-  isAppropriate: boolean;
-  reason?: string;
-}> => {
-  if (!text) return { isAppropriate: true };
-  
-  // Basic profanity/content check - would use a proper service in production
-  const checkTerms = [
-    'explicit', 'inappropriate', 'offensive', 'banned'
-  ];
-  
-  // Check for any problematic terms
-  for (const term of checkTerms) {
-    if (text.toLowerCase().includes(term)) {
-      return { 
-        isAppropriate: false, 
-        reason: `Content contains potentially inappropriate material (${term})` 
-      };
-    }
-  }
-  
-  return { isAppropriate: true };
-};
-
 export type UploadStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'error';
 
 export interface SharedFile {
@@ -58,6 +33,31 @@ export interface UploadResponse {
   mimeType?: string;
   fileName?: string;
 }
+
+// Basic content moderation function to screen uploads
+const moderateContent = async (text: string | undefined): Promise<{ 
+  isAppropriate: boolean;
+  reason?: string;
+}> => {
+  if (!text) return { isAppropriate: true };
+  
+  // Basic profanity/content check - would use a proper service in production
+  const checkTerms = [
+    'explicit', 'inappropriate', 'offensive', 'banned'
+  ];
+  
+  // Check for any problematic terms
+  for (const term of checkTerms) {
+    if (text.toLowerCase().includes(term)) {
+      return { 
+        isAppropriate: false, 
+        reason: `Content contains potentially inappropriate material (${term})` 
+      };
+    }
+  }
+  
+  return { isAppropriate: true };
+};
 
 /**
  * Prepares a file for upload by normalizing paths and generating appropriate filename

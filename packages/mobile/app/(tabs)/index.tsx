@@ -171,13 +171,12 @@ export default function HomeScreen() {
   }, [params.capturedPhoto]); // Add dependency on capturedPhoto
 
   const uploadFiles = async (files: SharedFile[]) => {
-    // [1] Set status to uploading initially
     setStatus("uploading"); 
     setUploadResults(
       files.map(file => ({
         fileName: file.name,
         mimeType: file.mimeType,
-        status: 'uploading', // Keep initial status per file as uploading
+        status: 'uploading', 
         text: undefined,
         fileUrl: undefined,
         error: undefined,
@@ -199,12 +198,8 @@ export default function HomeScreen() {
       return;
     }
     
-    // [2] Set status to processing immediately after checks, before async calls in loop
-    // This allows the UI (buttons) to become enabled sooner.
-    setStatus('processing');
-
-    let uploadsInitiated = 0;
-    let initiationFailed = false;
+    let processedCount = 0;
+    let errorCount = 0;
     const totalFiles = files.length;
 
     files.forEach((file, index) => {
@@ -213,29 +208,37 @@ export default function HomeScreen() {
         // console.log(`Intermediate status for ${file.name}: ${s}`);
       })
         .then(result => {
-          uploadsInitiated++;
+          processedCount++;
           console.log(`Processing finished for ${file.name}:`, result.status);
           // Update the specific file's result in state
           setUploadResults(prev => prev.map((r, i) => i === index ? { ...r, ...result, status: result.status } : r));
 
-          // Decide if overall status should change AFTER processing starts
-          // For now, we leave status as 'processing' until user interacts or all files finish/error
-          // if (uploadsInitiated === totalFiles && !initiationFailed) {
-          //   // Potentially set to 'completed' here if desired, but requirement is to unblock earlier
-          //   // setStatus('completed'); 
-          // }
+          // Check if all files are done
+          if (processedCount + errorCount === totalFiles) {
+            // If all processed successfully (errorCount is still 0), set completed
+            if (errorCount === 0) {
+              setStatus('completed');
+            } else {
+              // Otherwise, some failed, set error
+              setStatus('error'); 
+            }
+          }
         })
         .catch(error => {
-          uploadsInitiated++;
-          initiationFailed = true;
+          errorCount++;
           console.error(`Error processing file ${file.name}:`, error);
           setUploadResults(prev => prev.map((r, i) => i === index ? {
             ...r,
             status: 'error',
             error: error instanceof Error ? error.message : 'Failed to process file'
           } : r));
-          // If any file fails, set the overall status to error
-          setStatus("error"); 
+
+          // Check if all files are done (even if this one failed)
+          if (processedCount + errorCount === totalFiles) {
+            setStatus("error"); // Set final status to error
+          }
+          // Note: We don't set the *overall* status to error immediately on first failure, 
+          // we wait for all promises to settle. Individual files will show their error state.
         });
     });
   };
@@ -458,34 +461,67 @@ export default function HomeScreen() {
   );
 
   const renderProcessingStatus = () => {
-    if (status === 'uploading' || status === 'processing') {
-      const fileCount = uploadResults.length;
-      const message = status === 'uploading' ? `Starting upload for ${fileCount} file${fileCount > 1 ? 's' : ''}...`
-                                           : `Processing ${fileCount} file${fileCount > 1 ? 's' : ''}...`;
+    const fileCount = uploadResults.length;
+
+    // While uploading/processing is happening
+    if (status === 'uploading') {
+      const message = `Uploading & Processing ${fileCount} file${fileCount > 1 ? 's' : ''}...`;
       return (
         <ProcessingStatus
           status={status}
           result={message}
           fileName={fileCount === 1 ? uploadResults[0]?.fileName : (fileCount > 1 ? `${fileCount} files` : undefined)}
-          onRetry={handleRetry}
-          showDetails={false}
+          onRetry={handleRetry} // Retry might not make sense here, consider disabling/hiding
+          showDetails={false} // No details to show yet
+        />
+      );
+    }
+    
+    // When all processing is complete (successfully)
+    if (status === 'completed') {
+      const message = `Processing complete for ${fileCount} file${fileCount > 1 ? 's' : ''}.`;
+       // TODO: Could add more detail here by iterating through uploadResults if needed
+      return (
+        <ProcessingStatus
+          status={status}
+          result={message} 
+          fileName={fileCount === 1 ? uploadResults[0]?.fileName : (fileCount > 1 ? `${fileCount} files` : undefined)}
+          onRetry={handleRetry} // Allow retry/reset
+          showDetails={false} // Maybe show details of extracted text later?
         />
       );
     }
 
-    const firstErrorResult = status === 'error' ? uploadResults.find(r => r?.status === 'error') : null;
-    const displayResult = status === 'error' ? (firstErrorResult?.error || 'An error occurred during processing') : undefined;
-    const fileCount = uploadResults.length;
+    // When processing finished, but with errors
+    if (status === 'error') {
+      const errorResults = uploadResults.filter(r => r?.status === 'error');
+      const successResults = uploadResults.filter(r => r?.status === 'completed'); // Assuming 'completed' is the success status from handleFileProcess
+      const firstErrorResult = errorResults.length > 0 ? errorResults[0] : null;
+      
+      let message = `Processing finished with errors.`;
+      if (errorResults.length === fileCount) {
+        message = `All ${fileCount} file${fileCount > 1 ? 's' : ''} failed to process.`;
+      } else if (errorResults.length > 0) {
+        message = `${errorResults.length} of ${fileCount} file${fileCount > 1 ? 's' : ''} failed.`;
+      }
+      
+      // Use the first error message for the main display
+      const displayError = firstErrorResult?.error || 'An error occurred during processing';
 
-    return (
-      <ProcessingStatus
-        status={status}
-        result={displayResult}
-        fileName={fileCount === 1 ? uploadResults[0]?.fileName : (fileCount > 1 ? `${fileCount} files` : undefined)}
-        onRetry={handleRetry}
-        showDetails={status === 'error'}
-      />
-    );
+      return (
+        <ProcessingStatus
+          status={status}
+          result={message} // Use the summary message
+          errorDetails={displayError} // Provide the specific error message
+          fileName={fileCount > 1 ? `${fileCount} files` : uploadResults[0]?.fileName} // Keep general file info
+          onRetry={handleRetry}
+          showDetails={true} // Show the error details
+        />
+      );
+    }
+    
+    // If idle or any other state, don't render the status component
+    return null; 
   };
 
   return (

@@ -20,6 +20,9 @@ interface TabIconProps {
   focused: boolean;
 }
 
+// Explicitly type the icon name
+type MaterialIconName = React.ComponentProps<typeof MaterialIcons>['name'];
+
 export default function TabLayout() {
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
@@ -76,7 +79,7 @@ export default function TabLayout() {
   };
 
   // Custom tab bar icon with animation
-  const renderTabIcon = (props: TabIconProps, iconName: React.ComponentProps<typeof MaterialIcons>['name']) => {
+  const renderTabIcon = (props: TabIconProps, iconName: MaterialIconName) => {
     const { color, size, focused } = props;
     return (
       <MaterialIcons
@@ -117,16 +120,16 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: (props) => renderTabIcon(props, 'home'),
-          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'home'),
+          tabBarButton: (props: any) => <HapticTab {...props} />,
         }}
       />
       <Tabs.Screen
         name="notes"
         options={{
           title: 'My Notes',
-          tabBarIcon: (props) => renderTabIcon(props, 'note'),
-          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'note'),
+          tabBarButton: (props: any) => <HapticTab {...props} />,
         }}
       />
       
@@ -135,8 +138,8 @@ export default function TabLayout() {
         name="camera"
         options={{
           title: 'Capture',
-          tabBarIcon: (props) => renderTabIcon(props, 'camera-alt'),
-          tabBarButton: (props) => <CameraTabButton {...props} />,
+          tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'camera-alt'),
+          tabBarButton: (props: any) => <CameraTabButton {...props} />,
         }}
       />
       
@@ -145,16 +148,16 @@ export default function TabLayout() {
         name="sync"
         options={{
           title: 'Sync',
-          tabBarIcon: (props) => renderTabIcon(props, 'sync'),
-          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'sync'),
+          tabBarButton: (props: any) => <HapticTab {...props} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: (props) => renderTabIcon(props, 'settings'),
-          tabBarButton: (props) => <HapticTab {...props} />,
+          tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'settings'),
+          tabBarButton: (props: any) => <HapticTab {...props} />,
         }}
       />
     </Tabs>
