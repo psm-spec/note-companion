@@ -13,7 +13,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 // TODO: Uncomment to re-enable share intent functionality
-// import { useShareIntent } from "expo-share-intent";
+import { useShareIntent } from "expo-share-intent";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ProcessingStatus } from "@/components/processing-status";
 import { 
@@ -35,12 +35,11 @@ export default function HomeScreen() {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const params = useLocalSearchParams<{ sharedFile?: string; capturedPhoto?: string }>();
   // TODO: Uncomment to re-enable share intent functionality
-  // const { shareIntent } = useShareIntent();
+  const { shareIntent } = useShareIntent();
   const primaryColor = useSemanticColor('primary');
   const insets = useSafeAreaInsets();
 
   // TODO: Uncomment this useEffect block to re-enable share intent functionality
-  /*
   useEffect(() => {
     // Handle shared content
     const handleSharedContent = async () => {
@@ -102,7 +101,6 @@ export default function HomeScreen() {
 
     handleSharedContent();
   }, [shareIntent]);
-  */
 
   useEffect(() => {
     // Handle shared file if present
@@ -511,8 +509,7 @@ export default function HomeScreen() {
       return (
         <ProcessingStatus
           status={status}
-          result={message} // Use the summary message
-          errorDetails={displayError} // Provide the specific error message
+          result={displayError} // Pass error message to result prop
           fileName={fileCount > 1 ? `${fileCount} files` : uploadResults[0]?.fileName} // Keep general file info
           onRetry={handleRetry}
           showDetails={true} // Show the error details

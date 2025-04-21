@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSemanticColor } from '@/hooks/useThemeColor';
 import { HapticTab } from '@/components/HapticTab';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 
 // Import TabBarBackground component
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -121,7 +122,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'home'),
-          tabBarButton: (props: any) => <HapticTab {...props} />,
+          tabBarButton: (props: BottomTabBarButtonProps) => <HapticTab {...props} />,
         }}
       />
       <Tabs.Screen
@@ -129,7 +130,7 @@ export default function TabLayout() {
         options={{
           title: 'My Notes',
           tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'note'),
-          tabBarButton: (props: any) => <HapticTab {...props} />,
+          tabBarButton: (props: BottomTabBarButtonProps) => <HapticTab {...props} />,
         }}
       />
       
@@ -139,7 +140,7 @@ export default function TabLayout() {
         options={{
           title: 'Capture',
           tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'camera-alt'),
-          tabBarButton: (props: any) => <CameraTabButton {...props} />,
+          tabBarButton: (props: BottomTabBarButtonProps) => <CameraTabButton {...props} />,
         }}
       />
       
@@ -149,7 +150,7 @@ export default function TabLayout() {
         options={{
           title: 'Sync',
           tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'sync'),
-          tabBarButton: (props: any) => <HapticTab {...props} />,
+          tabBarButton: (props: BottomTabBarButtonProps) => <HapticTab {...props} />,
         }}
       />
       <Tabs.Screen
@@ -157,7 +158,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }: TabIconProps) => renderTabIcon({ color, size, focused }, 'settings'),
-          tabBarButton: (props: any) => <HapticTab {...props} />,
+          tabBarButton: (props: BottomTabBarButtonProps) => <HapticTab {...props} />,
         }}
       />
     </Tabs>
