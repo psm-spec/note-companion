@@ -553,15 +553,7 @@ export default function HomeScreen() {
       </View>
     </View>
   );
-  const renderHelpLink = () => (
-    <TouchableOpacity
-      style={styles.helpLink}
-      onPress={() => router.push("/help")}
-    >
-      <MaterialIcons name="help-outline" size={18} color="#007AFF" />
-      <Text style={styles.helpLinkText}>Need help with sharing?</Text>
-    </TouchableOpacity>
-  );
+
 
   return (
     <ThemedView style={styles.container}>
@@ -583,7 +575,6 @@ export default function HomeScreen() {
           {renderExplanation()}
           {renderUploadButtons()}
 
-          {renderHelpLink()}
         </View>
       </ScrollView>
     </ThemedView>

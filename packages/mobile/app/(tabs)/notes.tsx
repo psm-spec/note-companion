@@ -80,7 +80,7 @@ export default function NotesScreen() {
   useEffect(() => {
     if (loading) return;                         // wait for first load
     const stillProcessing = files.some(
-      f => f.status === "pending" || f.status === "processing"
+      (f) => f.processingStatus === "pending" || f.processingStatus === "processing"
     );
 
     let id: ReturnType<typeof setInterval> | null = null;
@@ -97,6 +97,26 @@ export default function NotesScreen() {
     setRefreshing(true);
     loadFiles(false);
   }, [loadFiles]);
+
+  // Define the header rendering function
+  const renderHeader = () => (
+    <ThemedView
+      variant="elevated"
+      style={[styles.header, { paddingTop: Math.max(20, insets.top) }]}
+    >
+      <View style={styles.titleContainer}>
+        <MaterialIcons
+          name="notes"
+          size={28}
+          color={primaryColor}
+          style={styles.icon}
+        />
+        <ThemedText type="heading" style={styles.headerTitle}>
+          My Notes
+        </ThemedText>
+      </View>
+    </ThemedView>
+  );
 
   const renderOnboarding = () => (
     <ScrollView style={styles.container}>
@@ -146,6 +166,7 @@ export default function NotesScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {renderHeader()}
       {showOnboarding ? (
         renderOnboarding()
       ) : (
