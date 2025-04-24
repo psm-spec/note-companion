@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
     - Not follow any predefined patterns or formats
 
     Additional context:
-    Time: ${new Date().toISOString()}
     Current Name: ${currentName}
     Document Content: ${document}
 
