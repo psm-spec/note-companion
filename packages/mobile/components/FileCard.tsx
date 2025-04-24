@@ -96,15 +96,36 @@ export function FileCard({ file, onDelete, onView }: FileCardProps) {
     }
   };
 
-  // Display a snippet of extracted text if available
-  const getContentPreview = () => {
+  // Display a snippet of extracted text or the generated image
+  const renderContentPreview = () => {
+    // If it's a magic diagram and has a generated image URL, show the image
+    if (file.processType === 'magic-diagram' && file.generatedImageUrl) {
+      return (
+        <Image 
+          source={{ uri: file.generatedImageUrl }}
+          style={styles.generatedImagePreview}
+          resizeMode="contain" // Or "cover" depending on desired look
+        />
+      );
+    }
+    
+    // Otherwise, show text preview
     if (file.extractedText) {
       const preview = file.extractedText.substring(0, 200); // Increased for more content
-      return preview.length < file.extractedText.length 
-        ? `${preview}...` 
-        : preview;
+      return (
+        <ThemedText colorName="textSecondary" style={styles.fileContentPreview}>
+          {preview.length < file.extractedText.length 
+            ? `${preview}...` 
+            : preview}
+        </ThemedText>
+      );
     }
-    return 'No preview available';
+    
+    return (
+      <ThemedText colorName="textSecondary" style={styles.fileContentPreview}>
+        No preview available
+      </ThemedText>
+    );
   };
 
   // Handle sharing the file with other apps
@@ -299,12 +320,6 @@ export function FileCard({ file, onDelete, onView }: FileCardProps) {
                   <MaterialIcons name="picture-as-pdf" size={48} color={primaryColor} />
                   <ThemedText colorName="textSecondary" style={styles.pdfPreviewText}>PDF Document</ThemedText>
                 </View>
-              ) : file.extractedText ? (
-                <View style={styles.textPreviewContainer}>
-                  <ThemedText colorName="textSecondary" style={styles.previewText} numberOfLines={6}>
-                    {getContentPreview()}
-                  </ThemedText>
-                </View>
               ) : (
                 <View style={styles.noPreviewContainer}>
                   <MaterialIcons name="insert-drive-file" size={48} color={textSecondaryColor} />
@@ -346,6 +361,21 @@ export function FileCard({ file, onDelete, onView }: FileCardProps) {
               </ThemedText>
             </View>
           </View>
+        </View>
+
+        {/* Moderation Warning */}        
+        {!moderation.isAppropriate && (
+          <View style={styles.moderationWarning}>
+            <MaterialIcons name="warning" size={16} color={warningColor} />
+            <ThemedText style={styles.moderationText} colorName="warning">
+              Content Warning: {moderation.contentFlags?.join(', ') || 'Potentially inappropriate'}
+            </ThemedText>
+          </View>
+        )}
+
+        {/* Content Preview Section - Use the new render function */} 
+        <View style={styles.contentPreviewContainer}>
+           {renderContentPreview()} 
         </View>
 
         <View style={styles.actionButtons}>
@@ -609,5 +639,36 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexDirection: 'row',
     marginBottom: 16,
+  },
+  generatedImagePreview: {
+    width: '100%',
+    height: 150, // Adjust height as needed
+    borderRadius: 8,
+    marginVertical: 8,
+    backgroundColor: '#e0e0e0', // Placeholder background
+  },
+  contentPreviewContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  moderationWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F6E05E',
+    borderRadius: 8,
+  },
+  moderationText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18, // Slightly increased line height
+  },
+  fileContentPreview: {
+    fontSize: 14,
+    lineHeight: 20,
+    padding: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

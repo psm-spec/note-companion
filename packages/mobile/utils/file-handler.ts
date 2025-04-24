@@ -9,6 +9,7 @@ export interface SharedFile {
   mimeType?: string;
   name?: string;
   text?: string;
+  processType?: string; // Add processType field to distinguish between 'magic-diagram' or regular OCR
 }
 
 export interface UploadResult {
@@ -94,21 +95,20 @@ export const prepareFile = async (
       case 'gif':
         mimeType = 'image/gif';
         break;
-      case 'pdf':
-        mimeType = 'application/pdf';
+      case 'webp':
+        mimeType = 'image/webp';
         break;
-      case 'md':
-        mimeType = 'text/markdown';
-        break;
-      case 'txt':
-        mimeType = 'text/plain';
-        break;
-      case 'doc':
-      case 'docx':
-        mimeType = 'application/msword';
+      case 'heic':
+        mimeType = 'image/heic';
         break;
       default:
-        mimeType = 'application/octet-stream';
+        // Try to assign a generic type based on the extension
+        if (fileExtension) {
+          mimeType = `application/${fileExtension}`;
+        } else {
+          // Default to generic binary
+          mimeType = 'application/octet-stream';
+        }
     }
   } 
   // Default to octet-stream if we can't determine
@@ -143,7 +143,126 @@ export const prepareFile = async (
   };
 };
 
+/**
+ * Uploads a file to the server using the new presigned URL flow for R2
+ */
+export const uploadFile = async (
+  file: SharedFile,
+  token: string
+): Promise<UploadResponse> => {
+  try {
+    console.log("Starting presigned URL upload flow...");
+    console.log('Input file properties:', {
+      hasTextContent: !!file.text,
+      mimeType: file.mimeType,
+      name: file.name,
+      uri: file.uri ? (file.uri.substring(0, 50) + '...') : undefined,
+    });
 
+    const { fileName, mimeType, fileUri } = await prepareFile(file);
+
+    console.log('Prepared file properties:', {
+      fileName,
+      mimeType,
+      fileUri: fileUri ? (fileUri.substring(0, 50) + '...') : undefined,
+      platform: Platform.OS,
+    });
+
+    // --- Binary File Upload via Presigned URL ---
+    console.log('Handling binary file upload via presigned URL');
+    if (!fileUri) {
+      throw new Error('No valid file URI available for upload');
+    }
+
+    // 1. Get presigned URL from our backend
+    console.log('Fetching presigned URL...');
+    const presignedUrlResponse = await fetch(`${API_URL}/api/create-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ filename: fileName, contentType: mimeType }),
+    });
+
+    if (!presignedUrlResponse.ok) {
+      const errorData = await presignedUrlResponse.json().catch(() => ({ error: 'Failed to get presigned URL' }));
+      throw new Error(errorData.error || 'Failed to get presigned URL');
+    }
+
+    const { uploadUrl, key, publicUrl } = await presignedUrlResponse.json();
+    console.log('Received presigned URL details:', { key, publicUrl: publicUrl?.substring(0, 50) + '...' });
+
+    if (!uploadUrl || !key || !publicUrl) {
+        throw new Error('Invalid response from create-upload-url endpoint');
+    }
+
+    // 2. Upload file directly to R2 using the presigned URL
+    console.log('Uploading file directly to R2...');
+    const uploadResult = await FileSystem.uploadAsync(uploadUrl, fileUri, {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        // Important: Set the content type header for the S3 PUT request
+        'Content-Type': mimeType,
+        // Remove Authorization header as it's not needed for the presigned URL
+        // 'Authorization': `Bearer ${token}`, <--- REMOVE THIS
+      },
+    });
+
+    console.log('R2 upload status:', uploadResult.status);
+    // Check if upload to R2 was successful (typically 200 OK)
+    if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        console.error('R2 Upload failed:', uploadResult.body);
+        throw new Error(`Direct upload to R2 failed with status ${uploadResult.status}`);
+    }
+    console.log('File uploaded successfully to R2');
+
+    // 3. Notify backend that upload is complete
+    console.log('Notifying backend of completed upload...');
+    const recordUploadResponse = await fetch(`${API_URL}/api/record-upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ 
+        key, 
+        publicUrl, 
+        originalName: fileName, 
+        fileType: mimeType,
+        processType: file.processType || 'standard-ocr' // Pass the processType or default to standard-ocr
+      }),
+    });
+
+    if (!recordUploadResponse.ok) {
+      const errorData = await recordUploadResponse.json().catch(() => ({ error: 'Failed to record upload' }));
+      throw new Error(errorData.error || 'Failed to record upload');
+    }
+
+    const recordResult = await recordUploadResponse.json();
+    console.log('Backend notified, record result:', recordResult);
+
+    return {
+      success: true,
+      fileId: recordResult.fileId, // The ID generated by our backend
+      status: 'pending', // Status is pending until background worker processes it
+      url: publicUrl, // The public URL of the file in R2
+      mimeType: mimeType, // Pass along mimeType
+      fileName: fileName, // Pass along fileName
+    };
+    // --- End Binary File Handling ---
+
+  } catch (error) {
+    console.error('Error in uploadFile (presigned URL flow):', error);
+    // Return a structured error response
+    return {
+      success: false,
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown upload error'
+    };
+  }
+};
 
 /**
  * Polls the server for results of file processing
@@ -274,6 +393,128 @@ export const pollForResults = async (
   };
 };
 
+/**
+ * Handles the entire file processing workflow: upload, trigger process, and poll for results
+ */
+export const handleFileProcess = async (
+  file: SharedFile,
+  token: string,
+  onStatusChange?: (status: UploadStatus, details?: { fileId?: string | number, url?: string, mimeType?: string, fileName?: string }) => void,
+): Promise<UploadResult> => {
+  let uploadData: UploadResponse | null = null;
+  let result: UploadResult;
+
+  try {
+    onStatusChange?.('uploading');
+
+    uploadData = await uploadFile(file, token);
+
+    if (!uploadData.success || !uploadData.fileId) {
+      // If upload itself failed, report error immediately
+      throw new Error(uploadData.error || 'File upload failed without specific error');
+    }
+
+    // Notify with details after successful upload initiation
+    // Status might be 'pending' for R2 or 'completed' for direct text upload
+    onStatusChange?.('processing', {
+      fileId: uploadData.fileId,
+      url: uploadData.url,
+      mimeType: uploadData.mimeType,
+      fileName: uploadData.fileName
+    });
+
+    // Determine if it was a direct text upload (this logic might need review if text files can be processed)
+    // For now, assume only non-text files need explicit triggering/polling
+    const needsProcessingTrigger = !((uploadData.mimeType?.startsWith('text/') ?? false) && uploadData.status === 'completed');
+
+    if (needsProcessingTrigger) {
+      // --- Trigger Generic Background Processing --- 
+      // Remove the call to /api/process-file
+      // Instead, directly trigger the background worker via /api/trigger-processing
+      console.log(`Upload successful for ${uploadData.fileId}, triggering background processing...`);
+      try {
+         const triggerResponse = await fetch(`${API_URL}/api/trigger-processing`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            }
+         });
+
+         if (triggerResponse.ok) {
+            console.log('Successfully triggered background processing job.');
+         } else {
+            const errorText = await triggerResponse.text();
+            console.warn(`Background processing trigger failed (${triggerResponse.status}): ${errorText}`);
+            // Continue to polling anyway, the cron job should pick it up eventually
+         }
+      } catch (triggerError) {
+         console.error('Error explicitly triggering background processing:', triggerError);
+         // Continue to polling anyway
+      }
+      // --- End Trigger Block ---
+    }
+
+    // Always poll for results, unless it was a direct text upload already completed
+    if (needsProcessingTrigger) {
+        console.log(`Polling for final results for fileId: ${uploadData.fileId}`);
+        // Pass isTextFile=false, polling is needed for all triggered types
+        result = await pollForResults(uploadData.fileId, token, false);
+    } else {
+        // This case might not be reachable anymore if text files are also processed
+        // Keeping it for safety, assuming direct text uploads don't need polling.
+        console.log("Direct text upload completed, creating final result object.");
+        result = {
+            status: 'completed',
+            text: uploadData.text,
+            fileId: uploadData.fileId,
+            url: uploadData.url,
+            mimeType: uploadData.mimeType,
+            fileName: uploadData.fileName,
+        };
+    }
+
+    // Add details from uploadData if missing in poll result
+    if (result.status !== 'error' && uploadData.url && !result.url) {
+        result.url = uploadData.url;
+    }
+     if (result.status !== 'error' && uploadData.mimeType && !result.mimeType) {
+        result.mimeType = uploadData.mimeType;
+    }
+     if (result.status !== 'error' && uploadData.fileName && !result.fileName) {
+        result.fileName = uploadData.fileName;
+    }
+
+    // Notify final status
+    onStatusChange?.(result.status, {
+        fileId: result.fileId,
+        url: result.url,
+        mimeType: result.mimeType,
+        fileName: result.fileName
+    });
+    return result;
+
+  } catch (error) {
+    console.error('handleFileProcess error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Failed to process file';
+    const fileIdOnError = uploadData?.fileId;
+    result = {
+      status: 'error',
+      error: errorMsg,
+      fileId: fileIdOnError,
+      url: uploadData?.url,
+      mimeType: uploadData?.mimeType,
+      fileName: uploadData?.fileName,
+    };
+    onStatusChange?.('error', {
+        fileId: result.fileId,
+        url: result.url,
+        mimeType: result.mimeType,
+        fileName: result.fileName
+    });
+    return result;
+  }
+};
 
 /**
  * Helper function to escape special characters in regex patterns
@@ -525,7 +766,6 @@ export const processSyncQueue = async (token: string): Promise<boolean> => {
         // Move to the end of the queue on error
         queue.push(queue.shift()!); // Move failed item to the end
         await FileSystem.writeAsStringAsync(SYNC_QUEUE_FILE, JSON.stringify(queue));
-        console.log(`Error processing queued file ${localId}, moved to end of queue:`, result.error);
       }
       // else: still processing, leave it in the queue
 
