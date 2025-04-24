@@ -59,7 +59,7 @@ async function downloadFromR2(key: string): Promise<Buffer> {
 }
 
 // Helper function to process image with gpt-4o
-async function processImageWithGPT4o(
+async function processImageWithGPT4one(
   imageUrl: string
 ): Promise<{ textContent: string; tokensUsed: number }> {
   try {
@@ -314,7 +314,7 @@ async function processSingleFileRecord(fileRecord: UploadedFile): Promise<{
 
 
     // Download is now only needed for magic-diagram before calling its function.
-    // processImageWithGPT4o uses the blobUrl directly.
+    // processImageWithGPT4one uses the blobUrl directly.
 
     // --- Processing Logic ---
     console.log(`Processing file ${fileId} with processType: ${processType}`);
@@ -343,7 +343,7 @@ async function processSingleFileRecord(fileRecord: UploadedFile): Promise<{
            throw new Error(`Missing blobUrl for OCR processing of file ID ${fileId}`);
        }
       console.log(`Processing Standard OCR for ${fileId} using blobUrl: ${fileRecord.blobUrl}`);
-      const result = await processImageWithGPT4o(fileRecord.blobUrl);
+      const result = await processImageWithGPT4one(fileRecord.blobUrl);
       textContent = result.textContent;
       tokensUsed = result.tokensUsed;
       if (textContent?.startsWith("Error processing image OCR")) {

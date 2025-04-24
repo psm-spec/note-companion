@@ -131,7 +131,7 @@ export const getModel = (name: string) => {
     console.log(`Defaulting to ${DEFAULT_MODEL}`);
     return models[DEFAULT_MODEL];
   }
-  console.log(`Using model ${name}`);
+  console.log(`Using model: ${name}`);
 
   return models[name];
 };

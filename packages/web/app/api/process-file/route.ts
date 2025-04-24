@@ -60,7 +60,7 @@ async function downloadFromR2(key: string): Promise<Buffer> {
 }
 
 // Helper function to process image with gpt-4o
-async function processImageWithGPT4o(imageUrl: string): Promise<{ textContent: string; tokensUsed: number }> {
+async function processImageWithGPT4one(imageUrl: string): Promise<{ textContent: string; tokensUsed: number }> {
    // Keep the existing implementation from process-file/route.ts (or the improved one from process-pending-uploads if different)
     try {
         console.log("Processing image with gpt-4o..."); // Use gpt-4o consistently
@@ -68,7 +68,7 @@ async function processImageWithGPT4o(imageUrl: string): Promise<{ textContent: s
         console.log(`Processing image URL: ${imageUrl}`); // Log the URL being sent
         const { object, usage } = await generateObject({
         //   model: openai("gpt-4.1"), // Ensure this uses gpt-4o if intended
-          model: openai("gpt-4o"),
+          model: openai("gpt-4.1"),
           schema: z.object({ markdown: z.string() }),
           messages: [
             { role: "system", content: "Extract all text comprehensively, preserving formatting." },
@@ -134,7 +134,7 @@ async function processSingleFileRecord(fileRecord: UploadedFile): Promise<{ stat
       if (!fileRecord.blobUrl) {
            throw new Error(`Missing blobUrl for image file ID ${fileId}`);
       }
-      const result = await processImageWithGPT4o(fileRecord.blobUrl);
+      const result = await processImageWithGPT4one(fileRecord.blobUrl);
       textContent = result.textContent;
       tokensUsed = result.tokensUsed;
       if (textContent.startsWith("Error processing image")) {
