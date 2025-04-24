@@ -26,7 +26,6 @@ import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useSemanticColor } from "@/hooks/useThemeColor";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { UsageStatus } from "@/components/usage-status";
 
 export default function HomeScreen() {
   const { getToken } = useAuth();
@@ -231,6 +230,13 @@ export default function HomeScreen() {
 
           // Check if all files are done
           if (processedCount + errorCount === totalFiles) {
+            // Add auto-jump logic for magic diagrams
+            if (file.processType === 'magic-diagram' && result.url) {
+              router.push({
+                pathname: '/diagram',
+                params: { fileId: String(result.fileId ?? ''), previewUrl: result.url },
+              });
+            }
             // If all processed successfully (errorCount is still 0), set completed
             if (errorCount === 0) {
               setStatus("completed");
@@ -482,12 +488,6 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderUsageStatus = () => (
-    <View style={styles.usageStatusContainer}>
-      <UsageStatus compact={true} />
-    </View>
-  );
-
   const renderUploadButtons = () => (
     <View style={styles.uploadButtons}>
       <View style={styles.uploadButtonRow}>
@@ -563,104 +563,25 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  const renderProcessingStatus = () => {
-    const fileCount = uploadResults.length;
-
-    // While uploading/processing is happening
-    if (status === "uploading") {
-      const message = `Uploading & Processing ${fileCount} file${
-        fileCount > 1 ? "s" : ""
-      }...`;
-      return (
-        <ProcessingStatus
-          status={status}
-          result={message}
-          fileName={
-            fileCount === 1
-              ? uploadResults[0]?.fileName
-              : fileCount > 1
-              ? `${fileCount} files`
-              : undefined
-          }
-          onRetry={handleRetry} // Retry might not make sense here, consider disabling/hiding
-          showDetails={false} // No details to show yet
-        />
-      );
-    }
-
-    // When all processing is complete (successfully)
-    if (status === "completed") {
-      const message = `Processing complete for ${fileCount} file${
-        fileCount > 1 ? "s" : ""
-      }.`;
-      // TODO: Could add more detail here by iterating through uploadResults if needed
-      return (
-        <ProcessingStatus
-          status={status}
-          result={message}
-          fileName={
-            fileCount === 1
-              ? uploadResults[0]?.fileName
-              : fileCount > 1
-              ? `${fileCount} files`
-              : undefined
-          }
-          onRetry={handleRetry} // Allow retry/reset
-          showDetails={false} // Maybe show details of extracted text later?
-        />
-      );
-    }
-
-    // When processing finished, but with errors
-    if (status === "error") {
-      const errorResults = uploadResults.filter((r) => r?.status === "error");
-      const successResults = uploadResults.filter(
-        (r) => r?.status === "completed"
-      ); // Assuming 'completed' is the success status from handleFileProcess
-      const firstErrorResult = errorResults.length > 0 ? errorResults[0] : null;
-
-      let message = `Processing finished with errors.`;
-      if (errorResults.length === fileCount) {
-        message = `All ${fileCount} file${
-          fileCount > 1 ? "s" : ""
-        } failed to process.`;
-      } else if (errorResults.length > 0) {
-        message = `${errorResults.length} of ${fileCount} file${
-          fileCount > 1 ? "s" : ""
-        } failed.`;
-      }
-
-      // Use the first error message for the main display
-      const displayError =
-        firstErrorResult?.error || "An error occurred during processing";
-
-      return (
-        <ProcessingStatus
-          status={status}
-          result={displayError} // Pass error message to result prop
-          fileName={
-            fileCount > 1 ? `${fileCount} files` : uploadResults[0]?.fileName
-          } // Keep general file info
-          onRetry={handleRetry}
-          showDetails={true} // Show the error details
-        />
-      );
-    }
-
-    // If idle or any other state, don't render the status component
-    return null;
-  };
-
   return (
     <ThemedView style={styles.container}>
       {renderHeader()}
+      <ProcessingStatus
+        status={status}
+        result={uploadResults[0]?.text as any} // Keep existing 'any' for now
+        fileUrl={uploadResults[0]?.url}
+        mimeType={uploadResults[0]?.mimeType}
+        fileName={uploadResults[0]?.fileName}
+        // Add processType prop - Need to get this from uploadResults too
+        // Assuming UploadResult has processType, which might need adding
+        // For now, let's try accessing it, will need adjustment if not present
+        processType={(uploadResults[0] as any)?.processType} // Add processType, may need type update
+        showDetails={false}
+      />
       <ScrollView style={styles.scrollView}>
         <View style={styles.mainSection}>
           {renderExplanation()}
-          {renderUsageStatus()}
           {renderUploadButtons()}
-
-          {renderProcessingStatus()}
 
           {renderHelpLink()}
         </View>
@@ -793,9 +714,6 @@ const styles = StyleSheet.create({
     color: "#007AFF",
     marginLeft: 6,
     fontWeight: "500",
-  },
-  usageStatusContainer: {
-    marginBottom: 16,
   },
   magicDiagramButton: {
     width: "100%", // Full width for the Magic Diagram button

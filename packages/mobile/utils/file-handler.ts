@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, API_CONFIG } from '@/constants/config';
 
-export type UploadStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'error';
+export type UploadStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'error' | 'pending';
 
 export interface SharedFile {
   uri?: string;
@@ -265,135 +265,6 @@ export const uploadFile = async (
 };
 
 /**
- * Polls the server for results of file processing
- * This now needs to poll a new status endpoint for R2 uploads
- */
-export const pollForResults = async (
-    fileId: string | number,
-    token: string,
-    isTextFile: boolean = false, // Flag to know if it was a direct text upload
-    maxAttempts = 30,
-    initialDelay = 2000,
-    pollInterval = 3000
-  ): Promise<UploadResult> => {
-
-  // Ensure fileId is a string for API calls
-  const fileIdStr = String(fileId);
-
-  // If it was a direct text upload, it should already be 'completed'
-  // We shouldn't need to poll for text files handled by the direct upload endpoint
-  if (isTextFile) {
-    console.log('Text file detected, skipping polling as it should be complete.');
-    // We need to fetch the final details though, as the initial return might lack text
-    // Let's use the new status endpoint for consistency
-     try {
-        const statusResponse = await fetch(`${API_URL}/api/get-upload-status/${fileIdStr}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!statusResponse.ok) {
-           throw new Error(`Failed to get initial status for text file: ${statusResponse.statusText}`);
-        }
-        const finalResult = await statusResponse.json();
-        return {
-           ...finalResult, // Spread the properties from the status endpoint
-           status: finalResult.status || 'completed', // Ensure status is set
-           fileId: fileIdStr,
-        };
-     } catch (error) {
-        console.error("Error fetching final status for text file:", error);
-        return {
-            status: 'error',
-            error: 'Failed to get final details for text file',
-            fileId: fileIdStr,
-        };
-     }
-  }
-
-  // --- Polling for R2 Uploads --- 
-  let attempts = 0;
-  console.log("Polling for R2 processing results with fileId:", fileIdStr);
-
-  // Wait an initial delay before starting to poll
-  await new Promise(resolve => setTimeout(resolve, initialDelay));
-
-  while (attempts < maxAttempts) {
-    try {
-      console.log(`Polling attempt ${attempts + 1}/${maxAttempts} for file ${fileIdStr}...`);
-
-      const response = await fetch(`${API_URL}/api/get-upload-status/${fileIdStr}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Error polling status: ${response.status} ${response.statusText}`, errorText);
-
-        // If not found yet, just wait and retry
-        if (response.status === 404) {
-          console.log(`File ${fileIdStr} not found yet, retrying...`);
-          attempts++;
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
-          continue;
-        }
-        // For other errors, maybe stop polling or retry differently
-        // For now, just retry after interval
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        continue;
-      }
-
-      const result = await response.json();
-      console.log("Poll status result:", result);
-
-      // Check the status field from the response
-      if (result.status === 'completed' || result.status === 'error') {
-         // Ensure fileId is included in the final result
-         return {
-           ...result,
-           fileId: fileIdStr,
-         };
-      } else if (result.status === 'processing' || result.status === 'pending') {
-        // Still processing, wait and poll again
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-      } else {
-        // Unexpected status
-        console.warn(`Unexpected status received: ${result.status}`);
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-      }
-
-    } catch (error) {
-      console.error('Error during pollForResults fetch:', error);
-      attempts++;
-      // If we've reached max attempts after an error, return error
-      if (attempts >= maxAttempts) {
-        return {
-            status: 'error',
-            error: 'Max polling attempts reached after error',
-            fileId: fileIdStr
-        };
-      }
-      // Wait before retrying after an error
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-    }
-  }
-
-  // If loop finishes without success/error status
-  return {
-    status: 'error',
-    error: 'Timed out waiting for processing results',
-    fileId: fileIdStr
-  };
-};
-
-/**
  * Handles the entire file processing workflow: upload, trigger process, and poll for results
  */
 export const handleFileProcess = async (
@@ -402,7 +273,6 @@ export const handleFileProcess = async (
   onStatusChange?: (status: UploadStatus, details?: { fileId?: string | number, url?: string, mimeType?: string, fileName?: string }) => void,
 ): Promise<UploadResult> => {
   let uploadData: UploadResponse | null = null;
-  let result: UploadResult;
 
   try {
     onStatusChange?.('uploading');
@@ -415,90 +285,56 @@ export const handleFileProcess = async (
     }
 
     // Notify with details after successful upload initiation
-    // Status might be 'pending' for R2 or 'completed' for direct text upload
-    onStatusChange?.('processing', {
+    // The status is now 'pending' as returned by uploadFile
+    onStatusChange?.('pending', { // Use 'pending' status immediately
       fileId: uploadData.fileId,
       url: uploadData.url,
       mimeType: uploadData.mimeType,
       fileName: uploadData.fileName
     });
 
-    // Determine if it was a direct text upload (this logic might need review if text files can be processed)
-    // For now, assume only non-text files need explicit triggering/polling
-    const needsProcessingTrigger = !((uploadData.mimeType?.startsWith('text/') ?? false) && uploadData.status === 'completed');
+    // --- Trigger Generic Background Processing (fire‑and‑forget) ---
+    console.log(`Upload successful for ${uploadData.fileId}, triggering background processing…`);
+    fetch(`${API_URL}/api/trigger-processing`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(t =>
+            console.warn(`Background trigger failed (${res.status}): ${t}`)
+          );
+        }
+        console.log('Background processing job triggered ✅');
+      })
+      .catch(err =>
+        console.error('Error triggering background processing:', err)
+      );
+    // --- End fire‑and‑forget ---
 
-    if (needsProcessingTrigger) {
-      // --- Trigger Generic Background Processing --- 
-      // Remove the call to /api/process-file
-      // Instead, directly trigger the background worker via /api/trigger-processing
-      console.log(`Upload successful for ${uploadData.fileId}, triggering background processing...`);
-      try {
-         const triggerResponse = await fetch(`${API_URL}/api/trigger-processing`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            }
-         });
+    // *** REMOVED POLLING LOGIC ***
 
-         if (triggerResponse.ok) {
-            console.log('Successfully triggered background processing job.');
-         } else {
-            const errorText = await triggerResponse.text();
-            console.warn(`Background processing trigger failed (${triggerResponse.status}): ${errorText}`);
-            // Continue to polling anyway, the cron job should pick it up eventually
-         }
-      } catch (triggerError) {
-         console.error('Error explicitly triggering background processing:', triggerError);
-         // Continue to polling anyway
-      }
-      // --- End Trigger Block ---
-    }
-
-    // Always poll for results, unless it was a direct text upload already completed
-    if (needsProcessingTrigger) {
-        console.log(`Polling for final results for fileId: ${uploadData.fileId}`);
-        // Pass isTextFile=false, polling is needed for all triggered types
-        result = await pollForResults(uploadData.fileId, token, false);
-    } else {
-        // This case might not be reachable anymore if text files are also processed
-        // Keeping it for safety, assuming direct text uploads don't need polling.
-        console.log("Direct text upload completed, creating final result object.");
-        result = {
-            status: 'completed',
-            text: uploadData.text,
-            fileId: uploadData.fileId,
-            url: uploadData.url,
-            mimeType: uploadData.mimeType,
-            fileName: uploadData.fileName,
-        };
-    }
-
-    // Add details from uploadData if missing in poll result
-    if (result.status !== 'error' && uploadData.url && !result.url) {
-        result.url = uploadData.url;
-    }
-     if (result.status !== 'error' && uploadData.mimeType && !result.mimeType) {
-        result.mimeType = uploadData.mimeType;
-    }
-     if (result.status !== 'error' && uploadData.fileName && !result.fileName) {
-        result.fileName = uploadData.fileName;
-    }
-
-    // Notify final status
-    onStatusChange?.(result.status, {
-        fileId: result.fileId,
-        url: result.url,
-        mimeType: result.mimeType,
-        fileName: result.fileName
-    });
-    return result;
+    // Return immediately after successful upload and trigger attempt
+    console.log(`handleFileProcess returning pending status for fileId: ${uploadData.fileId}`);
+    return {
+        status: 'pending', // Return 'pending' status
+        text: undefined, // Use undefined instead of null
+        error: undefined, // Use undefined instead of null
+        fileId: uploadData.fileId,
+        url: uploadData.url,
+        mimeType: uploadData.mimeType,
+        fileName: uploadData.fileName,
+    };
 
   } catch (error) {
     console.error('handleFileProcess error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Failed to process file';
     const fileIdOnError = uploadData?.fileId;
-    result = {
+    // Construct error result
+    const errorResult: UploadResult = {
       status: 'error',
       error: errorMsg,
       fileId: fileIdOnError,
@@ -506,13 +342,13 @@ export const handleFileProcess = async (
       mimeType: uploadData?.mimeType,
       fileName: uploadData?.fileName,
     };
-    onStatusChange?.('error', {
-        fileId: result.fileId,
-        url: result.url,
-        mimeType: result.mimeType,
-        fileName: result.fileName
+    onStatusChange?.('error', { // Notify error status
+        fileId: errorResult.fileId,
+        url: errorResult.url,
+        mimeType: errorResult.mimeType,
+        fileName: errorResult.fileName
     });
-    return result;
+    return errorResult; // Return the error result
   }
 };
 

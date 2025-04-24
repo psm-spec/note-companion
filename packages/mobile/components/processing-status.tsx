@@ -18,6 +18,7 @@ interface ProcessingStatusProps {
   fileUrl?: string;
   mimeType?: string;
   fileName?: string;
+  processType?: string;
   onRetry?: () => void;
   onBackToHome?: () => void;
   showDetails?: boolean;
@@ -29,6 +30,7 @@ export const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
   fileUrl,
   mimeType,
   fileName,
+  processType,
   onRetry,
   onBackToHome,
   showDetails = true,
@@ -51,6 +53,35 @@ export const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
               "This will just take a moment"
             </Text>
           )}
+        </View>
+      )}
+
+      {status === "pending" && (
+        <View style={styles.resultContainer}>
+          <View style={styles.resultHeader}>
+            <MaterialIcons name="cloud-upload" size={24} color="#4CAF50" />
+            <Text style={styles.successText}>
+              File uploaded – processing in background
+            </Text>
+            {processType === 'magic-diagram' && (
+              <Text style={styles.statusSubtext}>
+                opening diagram preview…
+              </Text>
+            )}
+          </View>
+
+          {/* Quick link to notes */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.viewNotesButton]}
+              onPress={() => router.push("/notes")}
+            >
+              <View style={styles.buttonContent}>
+                <MaterialIcons name="folder" size={18} color="#fff" />
+                <Text style={styles.buttonText}>View All Notes</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 

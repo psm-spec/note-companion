@@ -76,6 +76,23 @@ export default function NotesScreen() {
     }, [loadFiles])
   );
 
+  // ── auto-refresh until everything leaves "pending/processing" ─────────────────
+  useEffect(() => {
+    if (loading) return;                         // wait for first load
+    const stillProcessing = files.some(
+      f => f.status === "pending" || f.status === "processing"
+    );
+
+    let id: ReturnType<typeof setInterval> | null = null;
+    if (stillProcessing) {
+      id = setInterval(() => {
+        console.log("auto-refreshing notes list…");
+        loadFiles(false);                        // silent refresh
+      }, 5000);
+    }
+    return () => { if (id) clearInterval(id); };
+  }, [files, loading, loadFiles]);
+
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadFiles(false);
