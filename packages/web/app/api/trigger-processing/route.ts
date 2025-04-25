@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleAuthorizationV2 } from "@/lib/handleAuthorization";
 
-export const MAX_DURATION = 800 // This function can run for a maximum of 5 seconds
+export const maxDuration = 800; // This function can run for a maximum of 5 seconds
 
 // max duration 10 seconds
 

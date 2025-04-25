@@ -8,7 +8,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { handleAuthorizationV2 } from "@/lib/handleAuthorization";
-export const MAX_DURATION = 800 // This function can run for a maximum of 5 seconds
+export const maxDuration = 800; // This function can run for a maximum of 5 seconds
 
 // --- R2/S3 Configuration (Copied from process-pending-uploads) ---
 const R2_BUCKET = process.env.R2_BUCKET;
