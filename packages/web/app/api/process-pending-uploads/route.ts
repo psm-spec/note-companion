@@ -12,6 +12,7 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 
+export const maxDuration = process.env.IS_NOTE_COMPANION_TEAM === "true" ? 800 : 30; // This function can run for a maximum of 5 seconds
 // --- OpenAI Client for Image Generation ---
 const openaiImageClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
