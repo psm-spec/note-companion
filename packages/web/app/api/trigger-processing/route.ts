@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleAuthorizationV2 } from "@/lib/handleAuthorization";
 
+export const maxDuration = process.env.IS_NOTE_COMPANION_TEAM === "true" ? 800 : 30; // This function can run for a maximum of 5 seconds
+
+// max duration 10 seconds
+
 // This endpoint allows triggering the background processing job
 export async function POST(request: NextRequest) {
   console.log("[/api/trigger-processing] Received POST request"); // Log entry
