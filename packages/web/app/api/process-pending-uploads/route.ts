@@ -171,7 +171,6 @@ async function processMagicDiagram(
       image: preparedImage,
       prompt: generationPrompt,
       n: 1,
-      size: "1024x1024",
     });
 
     // 8. Extract base64 data
