@@ -231,12 +231,6 @@ export default function HomeScreen() {
           // Check if all files are done
           if (processedCount + errorCount === totalFiles) {
             // Add auto-jump logic for magic diagrams
-            if (file.processType === 'magic-diagram' && result.url) {
-              router.push({
-                pathname: '/diagram',
-                params: { fileId: String(result.fileId ?? ''), previewUrl: result.url },
-              });
-            }
             // If all processed successfully (errorCount is still 0), set completed
             if (errorCount === 0) {
               setStatus("completed");
@@ -422,11 +416,11 @@ export default function HomeScreen() {
       if (result.canceled) return;
       if (result.assets && result.assets.length > 0) {
         // Mark each asset with a processType property to indicate it's for magic diagram processing
-        const magicDiagramAssets = result.assets.map(asset => ({
+        const magicDiagramAssets = result.assets.map((asset) => ({
           ...asset,
-          processType: 'magic-diagram' // Add this property to signal the special processing
+          processType: "magic-diagram", // Add this property to signal the special processing
         }));
-        
+
         await uploadFiles(magicDiagramAssets);
       }
     } catch (error) {
@@ -436,7 +430,9 @@ export default function HomeScreen() {
         {
           status: "error",
           error:
-            error instanceof Error ? error.message : "Failed to take magic diagram photo",
+            error instanceof Error
+              ? error.message
+              : "Failed to take magic diagram photo",
           fileName: undefined,
           mimeType: undefined,
           text: undefined,
@@ -482,8 +478,8 @@ export default function HomeScreen() {
       <MaterialIcons name="auto-awesome" size={24} color={primaryColor} />
       <Text style={styles.explanationTitle}>Get OCR from any image</Text>
       <Text style={styles.explanationText}>
-        Upload any image and get the text extracted. You can also use the
-        share sheet to upload from other apps.
+        Upload any image and get the text extracted. You can also use the share
+        sheet to upload from other apps.
       </Text>
     </View>
   );
@@ -527,7 +523,7 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </View>
-      
+
       {/* Add a second row with the Magic Diagram button */}
       <View style={styles.uploadButtonRow}>
         <TouchableOpacity
@@ -541,11 +537,7 @@ export default function HomeScreen() {
         >
           <View style={styles.uploadButtonGradient}></View>
           <View style={styles.uploadButtonContent}>
-            <MaterialIcons
-              name="auto-awesome"
-              size={32}
-              color={primaryColor}
-            />
+            <MaterialIcons name="auto-awesome" size={32} color={primaryColor} />
             <Text style={styles.uploadButtonText}>Magic Diagram</Text>
             <Text style={styles.uploadButtonSubtext}>Convert Sketches</Text>
           </View>
@@ -553,7 +545,6 @@ export default function HomeScreen() {
       </View>
     </View>
   );
-
 
   return (
     <ThemedView style={styles.container}>
@@ -574,7 +565,6 @@ export default function HomeScreen() {
         <View style={styles.mainSection}>
           {renderExplanation()}
           {renderUploadButtons()}
-
         </View>
       </ScrollView>
     </ThemedView>
