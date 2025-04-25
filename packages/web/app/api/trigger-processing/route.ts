@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleAuthorizationV2 } from "@/lib/handleAuthorization";
 
-export const maxDuration = process.env.IS_NOTE_COMPANION_TEAM === "true" ? 800 : 30; // This function can run for a maximum of 5 seconds
+export const MAX_DURATION = 800 // This function can run for a maximum of 5 seconds
 
 // max duration 10 seconds
 
