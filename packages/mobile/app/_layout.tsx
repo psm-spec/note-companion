@@ -1,5 +1,4 @@
 import "react-native-gesture-handler";
-import React from 'react';
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, router, useRouter } from "expo-router";
@@ -117,11 +116,13 @@ async function findExistingFilePath(originalUrl: string): Promise<string> {
 
 // --- Main Layout Component ---
 function RootLayoutNav() {
-  const { isLoaded: isAuthLoaded, isSignedIn, user } = useAuth(); // +user for RC
-  const [showPaywall, setShowPaywall] = useState(false);
+  // Add type assertion for user as a temporary workaround
+  const { isLoaded: isAuthLoaded, isSignedIn, user } = useAuth() as any; // +user for RC
+  console.log('[Layout] Auth State:', { isAuthLoaded, isSignedIn, userId: user?.id });
   const [isFontLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  console.log('[Layout] Font State:', { isFontLoaded });
   const { urlToProcess, clearUrl } = useUrlHandler();
   const router = useRouter();
   const [isProcessingShare, setIsProcessingShare] = useState(false);
@@ -132,54 +133,70 @@ function RootLayoutNav() {
 
   // --- RevenueCat entitlement guard (modal) ---
   useEffect(() => {
-    if (!isFontLoaded || !isAuthLoaded) return; // wait for core
+    console.log('[Layout] RevenueCat Effect: Running');
+    if (!isFontLoaded || !isAuthLoaded) {
+      console.log('[Layout] RevenueCat Effect: Waiting for Fonts/Auth');
+      return; // wait for core
+    }
+    console.log('[Layout] RevenueCat Effect: Fonts/Auth Ready, Initializing RC...');
 
-    // 1. configure once
-    (async () => {
-      try {
-        await Purchases.configure({
-          apiKey: process.env.EXPO_PUBLIC_RC_API_KEY!,
-          appUserID: user?.id,            // undefined if anon
-        });
-      } catch (e) {
-        console.warn("[Purchases.configure] failed:", e);
-      }
-    })();
+    const apiKey = process.env.EXPO_PUBLIC_RC_API_KEY;
 
-    // 2. helper to toggle modal
-    // Ensure the 'update' function matches the CustomerInfoUpdateListener signature
-    // It should accept a CustomerInfo object
+    if (!apiKey) {
+      console.error("[Layout] RevenueCat Effect: EXPO_PUBLIC_RC_API_KEY is missing!");
+      return; 
+    }
+
+    // Define the update listener function first
     const update = async (customerInfo: CustomerInfo) => {
       try {
-        // Use the provided customerInfo object directly
         const hasPro = customerInfo.activeSubscriptions.length > 0;
-        setShowPaywall(!hasPro);
+        console.log(`[Layout] RevenueCat Update: User ${hasPro ? 'HAS' : 'does NOT have'} pro subscription.`); 
       } catch (e) {
-        // This catch block might not be necessary if getCustomerInfo is not called here
-        // But keep it for general safety
         console.warn("[customerInfo update handler] failed:", e);
       }
     };
 
-    // Fetch initial info separately, then add listener
-    const fetchInitialInfo = async () => {
+    // Function to configure and fetch initial info
+    const initializeAndFetchInfo = async () => {
       try {
-        const info = await Purchases.getCustomerInfo();
-        update(info); // Call update with the fetched info
-      } catch (e) {
-        console.warn("[Initial customerInfo fetch] failed:", e);
-        // Decide initial paywall state on error, e.g., show paywall
-        setShowPaywall(true); 
+        console.log('[Layout] RevenueCat Effect: Configuring Purchases...');
+        await Purchases.configure({
+          apiKey: apiKey, 
+          // Use asserted user type
+          appUserID: user?.id, 
+        });
+        console.log('[Layout] RevenueCat Effect: Configure SUCCESS');
+
+        // Fetch info AFTER successful configuration
+        try {
+          console.log('[Layout] RevenueCat Effect: Fetching initial CustomerInfo...');
+          const info = await Purchases.getCustomerInfo();
+          console.log('[Layout] RevenueCat Effect: Fetch CustomerInfo SUCCESS');
+          update(info); // Call update with the fetched info
+        } catch (fetchError) {
+          console.error("[Layout] RevenueCat Effect: Fetch CustomerInfo FAILED:", fetchError);
+        }
+
+      } catch (configError) {
+        console.error("[Layout] RevenueCat Effect: Configure FAILED:", configError);
       }
     };
 
-    fetchInitialInfo(); // Fetch initial info
+    // Call the initialization function
+    initializeAndFetchInfo();
 
-    const sub = Purchases.addCustomerInfoUpdateListener(update);
-    
-    // Ensure the cleanup function matches the Destructor type (returns void)
+    // Add the listener (now that 'update' is defined in this scope)
+    console.log('[Layout] RevenueCat Effect: Adding listener');
+    // addCustomerInfoUpdateListener doesn't return a subscription object to remove
+    // Pass the original listener function 'update' to remove it
+    Purchases.addCustomerInfoUpdateListener(update); 
+
+    // Cleanup function
     return () => {
-      Purchases.removeCustomerInfoUpdateListener(sub);
+      console.log('[Layout] RevenueCat Effect: Removing listener');
+      // Pass the *same function instance* to remove the listener
+      Purchases.removeCustomerInfoUpdateListener(update); 
     };
   }, [isFontLoaded, isAuthLoaded, user?.id]);
 
@@ -370,7 +387,9 @@ function RootLayoutNav() {
   // --- Render Logic ---
 
   // Show loading indicator while app core is loading or processing share
+  console.log('[Layout] Render Check:', { isAppReady, isProcessingShare });
   if (!isAppReady || isProcessingShare) {
+    console.log('[Layout] Render: Showing Loading Indicator/Splash');
     // Keep the splash screen visible while loading fonts/auth initially
     // Show ActivityIndicator only if processing a share action *after* initial load
     if (isProcessingShare && isAppReady) {
@@ -411,15 +430,12 @@ function RootLayoutNav() {
             {/* Define screens */}
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            {/* Define modal group */}
+            <Stack.Screen name="(modals)" options={{ presentation: 'modal', headerShown: false }} />
             {/* Add other stack screens like modals if needed */}
             {/* <Stack.Screen name="modal" options={{ presentation: 'modal' }} /> */}
           </Stack>
           <StatusBar style="dark" />
-          {showPaywall && (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-              <Paywall />
-            </View>
-          )}
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
