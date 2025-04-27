@@ -68,47 +68,52 @@ export default function Paywall() {
     }
   };
 
-  // --- Render Logic --- 
+  // --- Render Logic ---
 
-  // Loading state
-  if (loading) {
-     return (
-      <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.statusText}>Loading Subscription...</Text>
-      </View>
-    );
+  // Determine button text and state
+  const isLoadingOrError = loading || !!error || !monthly;
+  let buttonText = "Upgrade to Pro";
+  if (monthly?.product?.priceString) {
+    buttonText = `upgrade · ${monthly.product.priceString}`;
   }
 
-  // Error state
-  if (error) {
-    return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.errorText}>Error</Text>
-        <Text style={styles.statusText}>{error}</Text>
-        {/* Optionally add a retry button here */}
-      </View>
-    );
-  }
-  
-  // No monthly package found (but no specific error occurred)
-  // This path might be hit if Offerings structure is valid but has no 'monthly' package
-  if (!monthly) { 
-    return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.errorText}>Unavailable</Text>
-        <Text style={styles.statusText}>No subscription plans are currently configured.</Text>
-      </View>
-    );
-  }
-
-  // Success state: Render the paywall content
   return (
     <View style={styles.paywallContainer}>
+      {/* Title and Subtitle always shown */}
       <Text style={styles.titleText}>note companion pro</Text>
       <Text style={styles.subtitleText}>unlimited tokens • priority ocr • gpt‑4 vision</Text>
-      <TouchableOpacity onPress={buy} style={styles.buyButton}>
-        <Text style={styles.buyButtonText}>upgrade · {monthly.product.price_string}</Text>
+
+      {/* Loading Indicator */}
+      {loading && (
+        <View style={styles.statusContainer}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.statusText}>Loading Subscription...</Text>
+        </View>
+      )}
+
+      {/* Error Message - Display inline */}
+      {error && !loading && (
+        <View style={styles.statusContainer}>
+           <Text style={styles.errorText}>Error</Text>
+           <Text style={[styles.statusText, { color: styles.errorText.color }]}>{error}</Text>
+        </View>
+      )}
+      
+      {/* Offer Unavailable Message - Display inline */}
+      {!monthly && !loading && !error && (
+         <View style={styles.statusContainer}>
+           <Text style={styles.errorText}>Unavailable</Text>
+           <Text style={styles.statusText}>No subscription plans are currently configured.</Text>
+        </View>
+      )}
+
+      {/* Buy Button - Always shown, disabled if needed */}
+      <TouchableOpacity 
+        onPress={buy} 
+        style={[styles.buyButton, isLoadingOrError && styles.disabledButton]} // Apply disabled style
+        disabled={isLoadingOrError} // Disable touch interaction
+      >
+        <Text style={styles.buyButtonText}>{buttonText}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -121,6 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: "center", 
     alignItems: "center",
     padding: 20,
+    backgroundColor: 'white',
   },
   paywallContainer: {
     flex: 1, 
@@ -128,6 +134,11 @@ const styles = StyleSheet.create({
     alignItems: "center", 
     padding: 24,
     backgroundColor: 'white', // Example background
+  },
+  statusContainer: { // Added container for status/error messages
+    alignItems: 'center',
+    marginBottom: 20, // Space before the button
+    paddingHorizontal: 10, // Prevent text overflowing edges
   },
   statusText: {
     marginTop: 10,
@@ -139,6 +150,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#E53E3E', // Red color for errors
     marginBottom: 5,
+    textAlign: 'center',
   },
   titleText: {
     fontSize: 24, 
@@ -159,5 +171,9 @@ const styles = StyleSheet.create({
   buyButtonText: {
     color: "#fff", 
     fontWeight: "600",
+  },
+  disabledButton: { // Style for disabled button
+    backgroundColor: '#cccccc', // Greyed out
+    opacity: 0.7,
   },
 });
