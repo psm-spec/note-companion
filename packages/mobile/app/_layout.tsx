@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import React from 'react';
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, router, useRouter } from "expo-router";
@@ -13,6 +14,8 @@ import * as Linking from "expo-linking";
 import { processSharedFile, cleanupSharedFile } from "@/utils/share-handler";
 import * as FileSystem from "expo-file-system";
 import { AuthProvider, useAuth } from "@/providers/auth";
+import Purchases, { CustomerInfo } from "react-native-purchases";
+import Paywall from "./(paywall)/paywall";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -114,7 +117,8 @@ async function findExistingFilePath(originalUrl: string): Promise<string> {
 
 // --- Main Layout Component ---
 function RootLayoutNav() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth(); // Use auth state
+  const { isLoaded: isAuthLoaded, isSignedIn, user } = useAuth(); // +user for RC
+  const [showPaywall, setShowPaywall] = useState(false);
   const [isFontLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
@@ -125,6 +129,59 @@ function RootLayoutNav() {
 
   // Determine if the app core is ready (fonts, auth)
   const isAppReady = isFontLoaded && isAuthLoaded;
+
+  // --- RevenueCat entitlement guard (modal) ---
+  useEffect(() => {
+    if (!isFontLoaded || !isAuthLoaded) return; // wait for core
+
+    // 1. configure once
+    (async () => {
+      try {
+        await Purchases.configure({
+          apiKey: process.env.EXPO_PUBLIC_RC_API_KEY!,
+          appUserID: user?.id,            // undefined if anon
+        });
+      } catch (e) {
+        console.warn("[Purchases.configure] failed:", e);
+      }
+    })();
+
+    // 2. helper to toggle modal
+    // Ensure the 'update' function matches the CustomerInfoUpdateListener signature
+    // It should accept a CustomerInfo object
+    const update = async (customerInfo: CustomerInfo) => {
+      try {
+        // Use the provided customerInfo object directly
+        const hasPro = customerInfo.activeSubscriptions.length > 0;
+        setShowPaywall(!hasPro);
+      } catch (e) {
+        // This catch block might not be necessary if getCustomerInfo is not called here
+        // But keep it for general safety
+        console.warn("[customerInfo update handler] failed:", e);
+      }
+    };
+
+    // Fetch initial info separately, then add listener
+    const fetchInitialInfo = async () => {
+      try {
+        const info = await Purchases.getCustomerInfo();
+        update(info); // Call update with the fetched info
+      } catch (e) {
+        console.warn("[Initial customerInfo fetch] failed:", e);
+        // Decide initial paywall state on error, e.g., show paywall
+        setShowPaywall(true); 
+      }
+    };
+
+    fetchInitialInfo(); // Fetch initial info
+
+    const sub = Purchases.addCustomerInfoUpdateListener(update);
+    
+    // Ensure the cleanup function matches the Destructor type (returns void)
+    return () => {
+      Purchases.removeCustomerInfoUpdateListener(sub);
+    };
+  }, [isFontLoaded, isAuthLoaded, user?.id]);
 
   // Effect to hide splash screen once fonts are loaded
   useEffect(() => {
@@ -358,6 +415,11 @@ function RootLayoutNav() {
             {/* <Stack.Screen name="modal" options={{ presentation: 'modal' }} /> */}
           </Stack>
           <StatusBar style="dark" />
+          {showPaywall && (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+              <Paywall />
+            </View>
+          )}
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
