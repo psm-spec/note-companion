@@ -42,9 +42,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
       CFBundleAllowMixedLocalizations: true,
       NSPhotoLibraryUsageDescription:
-        "We need access to your photos to upload and process them.",
+        "Note Companion lets you choose photos and scanned documents so we can extract text and automatically classify them into Markdown notes in your vault (e.g., pick a receipt photo to file under Finances/Receipts).",
       NSCameraUsageDescription:
-        "We need access to your camera to take photos of documents.",
+        "Note Companion uses the camera to capture documents or diagrams that are then converted into text and saved as notes (e.g., snap a whiteboard to create a meeting note).",
       LSApplicationQueriesSchemes: ["obsidian"],
       UIFileSharingEnabled: true,
       LSSupportsOpeningDocumentsInPlace: true,
