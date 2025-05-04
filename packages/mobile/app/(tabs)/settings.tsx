@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, Platform, ScrollView, Linking } from 'react-native';
+import { View, StyleSheet, Alert, Platform, ScrollView, Linking, TouchableOpacity } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Button } from '../../components/Button';
 import { ThemedView } from '../../components/ThemedView';
@@ -121,6 +121,14 @@ export default function SettingsScreen() {
           </Button>
         </View>
         
+        {/* Disclosure for External Purchase Link */}
+        <View style={styles.disclosureSection}>
+          <ThemedText style={styles.disclosureText} colorName="textSecondary">
+            Tapping "Upgrade on Web" will take you outside the app to complete your purchase for the Note Companion - Cloud plan ($15.00/month).
+            This subscription is managed entirely through our website, not Apple.
+          </ThemedText>
+        </View>
+        
         {/* Danger Zone Section */}
         <View style={styles.dangerSection}>
           <ThemedText type="subtitle" style={styles.dangerTitle}>Danger Zone</ThemedText>
@@ -136,6 +144,19 @@ export default function SettingsScreen() {
               Delete Account
             </Button>
           </ThemedView>
+        </View>
+
+        {/* Legal Section */}
+        <View style={styles.legalSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Legal</ThemedText>
+          <TouchableOpacity style={styles.legalLink} onPress={() => Linking.openURL('https://notecompanion.ai/privacy')}> 
+            <ThemedText style={styles.legalLinkText}>Privacy Policy</ThemedText>
+            <MaterialIcons name="launch" size={16} color={primaryColor} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.legalLink} onPress={() => Linking.openURL('https://notecompanion.ai/terms-of-service')}>
+            <ThemedText style={styles.legalLinkText}>Terms of Service</ThemedText>
+            <MaterialIcons name="launch" size={16} color={primaryColor} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </ThemedView>
@@ -255,5 +276,28 @@ const styles = StyleSheet.create({
     minHeight: 48,
     backgroundColor: '#E53E3E',
     marginTop: 8,
+  },
+  disclosureSection: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    backgroundColor: 'rgba(254, 215, 215, 0.1)',
+  },
+  disclosureText: {
+    marginBottom: 16,
+  },
+  legalSection: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 10,
+    backgroundColor: 'rgba(254, 215, 215, 0.1)',
+  },
+  legalLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  legalLinkText: {
+    marginLeft: 8,
   },
 });
