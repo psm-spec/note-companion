@@ -71,9 +71,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ],
     },
     associatedDomains: [],
-    entitlements: {
-      "com.apple.developer.external-purchase-link": true,
-    },
   },
   android: {
     icon: "./assets/big-logo.png",
@@ -159,6 +156,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     upgradeCheckoutUrl: process.env.EXPO_PUBLIC_UPGRADE_CHECKOUT_URL,
     clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    storefront: "us",
     router: {
       origin: false,
     },

@@ -9,12 +9,14 @@ import { useSemanticColor } from '@/hooks/useThemeColor';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UsageStatus } from '@/components/usage-status';
 import Constants from 'expo-constants';
+import * as Localization from 'expo-localization';
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
   const primaryColor = useSemanticColor('primary');
   const insets = useSafeAreaInsets();
+  const isUS = Localization.region === 'US';
 
   type ExtraConfig = { upgradeCheckoutUrl?: string };
   const checkoutUrl = (Constants.expoConfig?.extra as ExtraConfig | undefined)?.upgradeCheckoutUrl;
@@ -104,13 +106,15 @@ export default function SettingsScreen() {
         
         {/* Upgrade and Sign Out buttons */}
         <View style={styles.bottomActions}>
-          <Button
-            onPress={handleUpgrade}
-            variant="primary"
-            style={{ marginBottom: 12 }}
-          >
-            Upgrade on Web
-          </Button>
+          {isUS && (
+            <Button
+              onPress={handleUpgrade}
+              variant="primary"
+              style={{ marginBottom: 12 }}
+            >
+              Upgrade on notecompanion.ai
+            </Button>
+          )}
 
           <Button
             onPress={() => signOut()}
@@ -122,12 +126,14 @@ export default function SettingsScreen() {
         </View>
         
         {/* Disclosure for External Purchase Link */}
-        <View style={styles.disclosureSection}>
-          <ThemedText style={styles.disclosureText} colorName="textSecondary">
-            Tapping "Upgrade on Web" will take you outside the app to complete your purchase for the Note Companion - Cloud plan ($15.00/month).
-            This subscription is managed entirely through our website, not Apple.
-          </ThemedText>
-        </View>
+        {isUS && (
+          <View style={styles.disclosureSection}>
+            <ThemedText style={styles.disclosureText} colorName="textSecondary">
+              Tapping "Upgrade on notecompanion.ai" will take you outside the app to complete your purchase for the Note Companion - Cloud plan ($15.00/month).
+              This subscription is managed entirely through our website, not Apple.
+            </ThemedText>
+          </View>
+        )}
         
         {/* Danger Zone Section */}
         <View style={styles.dangerSection}>
