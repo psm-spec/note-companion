@@ -8,12 +8,24 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSemanticColor } from '@/hooks/useThemeColor';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UsageStatus } from '@/components/usage-status';
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
   const primaryColor = useSemanticColor('primary');
   const insets = useSafeAreaInsets();
+
+  type ExtraConfig = { upgradeCheckoutUrl?: string };
+  const checkoutUrl = (Constants.expoConfig?.extra as ExtraConfig | undefined)?.upgradeCheckoutUrl;
+
+  const handleUpgrade = () => {
+    if (!checkoutUrl) {
+      Alert.alert('Unavailable', 'Upgrade link is not configured.');
+      return;
+    }
+    Linking.openURL(checkoutUrl);
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -90,8 +102,16 @@ export default function SettingsScreen() {
           </ThemedView>
         </View>
         
-        {/* Bottom buttons */}
+        {/* Upgrade and Sign Out buttons */}
         <View style={styles.bottomActions}>
+          <Button
+            onPress={handleUpgrade}
+            variant="primary"
+            style={{ marginBottom: 12 }}
+          >
+            Upgrade on Web
+          </Button>
+
           <Button
             onPress={() => signOut()}
             variant="secondary" 

@@ -42,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
       CFBundleAllowMixedLocalizations: true,
       NSPhotoLibraryUsageDescription:
-        "Note Companion lets you choose photos and scanned documents so we can extract text and automatically classify them into Markdown notes in your vault (e.g., pick a receipt photo to file under Finances/Receipts).",
+        "Allow access so you can attach receipt photos to an expense. Example: tap 'Add receipt', pick a photo, and we save it with the transaction.",
       NSCameraUsageDescription:
         "Note Companion uses the camera to capture documents or diagrams that are then converted into text and saved as notes (e.g., snap a whiteboard to create a meeting note).",
       LSApplicationQueriesSchemes: ["obsidian"],
@@ -71,6 +71,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ],
     },
     associatedDomains: [],
+    entitlements: {
+      "com.apple.developer.external-purchase-link": true,
+    },
   },
   android: {
     icon: "./assets/big-logo.png",
@@ -154,6 +157,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
+    upgradeCheckoutUrl: process.env.EXPO_PUBLIC_UPGRADE_CHECKOUT_URL,
     clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
     router: {
       origin: false,
