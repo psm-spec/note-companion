@@ -18,7 +18,9 @@
     "build:android": "eas build --platform android --local",
     "build:ios": "eas build --platform ios --local --profile production --non-interactive",
     "build:ios:remote": "eas build --platform ios --profile production --non-interactive",
-    "submit:ios": "eas submit --platform ios"
+    "submit:ios": "eas submit --platform ios --latest --non-interactive",
+    
+    "build-and-submit:ios": "pnpm run build:ios && eas submit --platform ios --latest --non-interactive"
   },
   "expo": {
     "doctor": {
