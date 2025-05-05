@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UsageStatus } from '@/components/usage-status';
 import Constants from 'expo-constants';
 import * as Localization from 'expo-localization';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
@@ -21,12 +22,17 @@ export default function SettingsScreen() {
   type ExtraConfig = { upgradeCheckoutUrl?: string };
   const checkoutUrl = (Constants.expoConfig?.extra as ExtraConfig | undefined)?.upgradeCheckoutUrl;
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     if (!checkoutUrl) {
       Alert.alert('Unavailable', 'Upgrade link is not configured.');
       return;
     }
-    Linking.openURL(checkoutUrl);
+    try {
+      await WebBrowser.openBrowserAsync(checkoutUrl);
+    } catch (error) {
+      console.error("Failed to open upgrade URL:", error);
+      Alert.alert("Error", "Could not open the upgrade page.");
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -108,35 +114,39 @@ export default function SettingsScreen() {
         </View>
         
         {/* Upgrade and Sign Out buttons */}
-        <View style={styles.bottomActions}>
+        <View style={styles.actionsContainer}> 
+
+          {/* Upgrade Section (Conditional for US) */}
           {isUS && (
-            <Button
-              onPress={handleUpgrade}
-              variant="primary"
-              style={{ marginBottom: 12 }}
-            >
-              Upgrade on notecompanion.ai
-            </Button>
+            <View style={styles.upgradeSection}>
+              <Button
+                onPress={handleUpgrade}
+                variant="primary"
+              >
+                Upgrade on notecompanion.ai
+              </Button>
+
+              {/* Disclosure for External Purchase Link */}
+              <View style={styles.disclosureSection}>
+                <ThemedText style={styles.disclosureText} colorName="textSecondary">
+                  Tapping "Upgrade on notecompanion.ai" will take you outside the app to complete your purchase for the Note Companion - Cloud plan ($15.00/month).
+                  This subscription is managed entirely through our website, not Apple.
+                </ThemedText>
+              </View>
+            </View>
           )}
 
-          <Button
-            onPress={() => signOut()}
-            variant="secondary" 
-            textStyle={{color: '#333333', fontWeight: '600'}}
-          >
-            Sign Out
-          </Button>
-        </View>
-        
-        {/* Disclosure for External Purchase Link */}
-        {isUS && (
-          <View style={styles.disclosureSection}>
-            <ThemedText style={styles.disclosureText} colorName="textSecondary">
-              Tapping "Upgrade on notecompanion.ai" will take you outside the app to complete your purchase for the Note Companion - Cloud plan ($15.00/month).
-              This subscription is managed entirely through our website, not Apple.
-            </ThemedText>
+          {/* Sign Out Button */}
+          <View style={styles.signOutContainer}>
+            <Button
+              onPress={() => signOut()}
+              variant="secondary" 
+              textStyle={{color: '#333333', fontWeight: '600'}}
+            >
+              Sign Out
+            </Button>
           </View>
-        )}
+        </View>
         
         {/* Danger Zone Section */}
         <View style={styles.dangerSection}>
@@ -244,17 +254,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  signOutButton: {
-    marginTop: 10,
-    borderRadius: 12,
-    minHeight: 50, // Taller buttons for better touch targets
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    // We're explicitly setting backgroundColor in the component itself
-  },
-  bottomActions: {
+  actionsContainer: {
     paddingVertical: 20,
+    marginTop: 10,
+  },
+  upgradeSection: {
+    marginBottom: 16,
+  },
+  signOutContainer: {
     marginTop: 10,
   },
   dangerSection: {
@@ -293,7 +300,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(254, 215, 215, 0.1)',
   },
   disclosureText: {
-    marginBottom: 16,
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
   },
   legalSection: {
     padding: 16,
