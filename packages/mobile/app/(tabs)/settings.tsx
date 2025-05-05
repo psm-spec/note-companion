@@ -20,7 +20,8 @@ export default function SettingsScreen() {
   const isUS = Localization.region === 'US';
 
   type ExtraConfig = { upgradeCheckoutUrl?: string };
-  const checkoutUrl = (Constants.expoConfig?.extra as ExtraConfig | undefined)?.upgradeCheckoutUrl;
+  const checkoutUrl = process.env.EXPO_PUBLIC_UPGRADE_CHECKOUT_URL;
+
 
   const handleUpgrade = async () => {
     if (!checkoutUrl) {
