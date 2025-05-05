@@ -75,7 +75,10 @@ export default function SettingsScreen() {
         </ThemedText>
       </ThemedView>
       
-      <ScrollView style={styles.contentContainer}>
+      <ScrollView 
+        style={styles.contentContainer}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         <View style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Account</ThemedText>
           
