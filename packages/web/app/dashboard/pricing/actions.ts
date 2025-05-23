@@ -31,6 +31,7 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
     throw new Error(`Invalid plan specified: ${plan}`);
   }
 
+  const reqHeaders = headers();
   const { userId: currentUser } = getAuth({ headers }); // Get the full auth object
   if (!currentUser || currentUser !== userId) throw new Error("User mismatch or not authenticated");
 
@@ -110,14 +111,16 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
 // --- Existing Actions Refactored ---
 
 export async function createPayOnceLifetimeCheckout() {
-  const { userId } = getAuth({ headers });
+  const reqHeaders = headers();
+  const { userId } = getAuth({ headers: reqHeaders });
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceLifetime');
   redirect(sessionUrl);
 }
 
 export async function createMonthlySubscriptionCheckout() {
-  const { userId } = getAuth({ headers });
+  const reqHeaders = headers();
+  const { userId } = getAuth({ headers: reqHeaders });
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'SubscriptionMonthly');
   redirect(sessionUrl);
@@ -125,7 +128,8 @@ export async function createMonthlySubscriptionCheckout() {
 
 // Modified to just return URL for direct use if needed, but primarily redirects
 export async function createYearlySubscriptionCheckout() {
-  const { userId } = getAuth({ headers });
+  const reqHeaders = headers();
+  const { userId } = getAuth({ headers: reqHeaders });
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'SubscriptionYearly');
   redirect(sessionUrl);
@@ -139,7 +143,8 @@ export async function createYearlySession(userId: string) {
 }
 
 export async function createPayOnceOneYearCheckout() {
-  const { userId } = getAuth({ headers });
+  const reqHeaders = headers();
+  const { userId } = getAuth({ headers: reqHeaders });
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceOneYear');
   redirect(sessionUrl);
@@ -147,7 +152,8 @@ export async function createPayOnceOneYearCheckout() {
 
 // Add action for Top Up if needed
 export async function createTopUpCheckout() {
-    const { userId } = getAuth({ headers });
+    const reqHeaders = headers();
+    const { userId } = getAuth({ headers: reqHeaders });
     if (!userId) throw new Error("Not authenticated");
     const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceTopUp');
     redirect(sessionUrl);
