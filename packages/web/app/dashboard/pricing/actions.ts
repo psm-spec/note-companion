@@ -48,7 +48,7 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
   const priceInfo = Object.values(productConfig.prices)[0]; // Assumes one price per product for simplicity here
 
   if (!priceInfo) {
-    throw new Error(No price info found for plan: ${plan});
+    throw new Error(`No price info found for plan: ${plan}`);
   }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
