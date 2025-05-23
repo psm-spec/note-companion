@@ -14,10 +14,10 @@ const getUrls = () => {
   const origin = getUrl();
   return {
     // Consistent success/cancel URLs simplify things
-    success: ${origin}/dashboard?checkout=success,
-    cancel: ${origin}/dashboard/pricing?checkout=cancel,
+    success: `${origin}/dashboard?checkout=success`,
+    cancel: `${origin}/dashboard/pricing?checkout=cancel`,
     // Specific landing for lifetime might be nice, but optional
-    // lifetime: ${origin}/dashboard/lifetime,
+    // lifetime: `${origin}/dashboard/lifetime`,
   };
 };
 
