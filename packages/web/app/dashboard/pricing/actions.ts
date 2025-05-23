@@ -27,7 +27,7 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
   const productConfig = PRODUCTS[plan];
 
   if (!productConfig) {
-    throw new Error(Invalid plan specified: ${plan});
+    throw new Error(`Invalid plan specified: ${plan}`);
   }
 
   const authResult = await auth(); // Get the full auth object
