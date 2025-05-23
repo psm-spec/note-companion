@@ -14,10 +14,10 @@ const getUrls = () => {
   const origin = getUrl();
   return {
     // Consistent success/cancel URLs simplify things
-    success: `${origin}/dashboard?checkout=success`,
-    cancel: `${origin}/dashboard/pricing?checkout=cancel`,
+    success: ${origin}/dashboard?checkout=success,
+    cancel: ${origin}/dashboard/pricing?checkout=cancel,
     // Specific landing for lifetime might be nice, but optional
-    // lifetime: `${origin}/dashboard/lifetime`,
+    // lifetime: ${origin}/dashboard/lifetime,
   };
 };
 
@@ -27,14 +27,13 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
   const productConfig = PRODUCTS[plan];
 
   if (!productConfig) {
-    throw new Error(`Invalid plan specified: ${plan}`);
+    throw new Error(Invalid plan specified: ${plan});
   }
 
-  const { userId: currentUser } = getAuth();
-  if (!currentUser || currentUser !== userId) throw new Error("User mismatch or not authenticated");
+  const authResult = await auth(); // Get the full auth object
+  if (!authResult.userId || authResult.userId !== userId) throw new Error("User mismatch or not authenticated");
 
   // Fetch user details using clerkClient for email prefill
-  const client = await clerkClient();
   const clerkUser = await clerkClient.users.getUser(userId);
   const userEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
 
@@ -49,7 +48,7 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
   const priceInfo = Object.values(productConfig.prices)[0]; // Assumes one price per product for simplicity here
 
   if (!priceInfo) {
-    throw new Error(`No price info found for plan: ${plan}`);
+    throw new Error(No price info found for plan: ${plan});
   }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
@@ -110,14 +109,14 @@ export async function _createStripeCheckoutSession(userId: string, plan: keyof t
 // --- Existing Actions Refactored ---
 
 export async function createPayOnceLifetimeCheckout() {
-  const { userId } = getAuth();
+  const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceLifetime');
   redirect(sessionUrl);
 }
 
 export async function createMonthlySubscriptionCheckout() {
-  const { userId } = getAuth();
+  const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'SubscriptionMonthly');
   redirect(sessionUrl);
@@ -125,7 +124,7 @@ export async function createMonthlySubscriptionCheckout() {
 
 // Modified to just return URL for direct use if needed, but primarily redirects
 export async function createYearlySubscriptionCheckout() {
-  const { userId } = getAuth();
+  const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'SubscriptionYearly');
   redirect(sessionUrl);
@@ -139,7 +138,7 @@ export async function createYearlySession(userId: string) {
 }
 
 export async function createPayOnceOneYearCheckout() {
-  const { userId } = getAuth();
+  const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
   const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceOneYear');
   redirect(sessionUrl);
@@ -147,7 +146,7 @@ export async function createPayOnceOneYearCheckout() {
 
 // Add action for Top Up if needed
 export async function createTopUpCheckout() {
-    const { userId } = getAuth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Not authenticated");
     const sessionUrl = await _createStripeCheckoutSession(userId, 'PayOnceTopUp');
     redirect(sessionUrl);
